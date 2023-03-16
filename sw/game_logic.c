@@ -37,7 +37,8 @@ static bool wasRMB = false;
 static int mouseX = 0;
 static int mouseY = 0;
 
-static bool isHolding = false; // holding slider
+static int curvePointIndex = 0;
+static bool isSliding = false;
 static bool isSpinning = false;
 
 // raising edge flags to be handled/cleared during gameplay
@@ -284,7 +285,7 @@ static void DeleteObject() {
 //			gameHitobjects[objectsDeleted].y,gameHitobjects[objectsDeleted].time);
 
 	if (gameHitobjects[objectsDeleted].type == OBJ_TYPE_SLIDER) {
-		isHolding = false;
+		isSliding = false;
 	} else if (gameHitobjects[objectsDeleted].type == OBJ_TYPE_SPINNER) {
 		isSpinning = false;
 	}
@@ -306,10 +307,11 @@ static void RedrawGameplay() {
 	}
 
 	DisplayBufferAndMouse(mouseX, mouseY);
-	isScreenChanged = false;
 
 	int duration = time - startTime;
-	xil_printf("Draw Time: %dms\r\n", duration);
+	int fps = 1000 / duration;
+
+//	xil_printf("Draw Time:%3dms FPS:%3d\r\n", duration, fps);
 }
 
 static void CheckCollision(HitObject *currentObjectPtr) {
@@ -334,42 +336,99 @@ static void CheckCollision(HitObject *currentObjectPtr) {
 				DeleteObject();
 			} else if (currentObjectPtr->type == OBJ_TYPE_SLIDER) {
 				xil_printf("Starting slider, hold it...\r\n");
-				isHolding = true;
+				curvePointIndex = 0;
+				isSliding = true;
 			}
 		} else {
 			xil_printf("Miss!\r\n");
 		}
 
 		isLMBPress = false;
-	} else if (isLMBRelease && isHolding) {
-		int dx;
-		int dy;
-
-		if (currentObjectPtr->curveNumPoints < 10) {
-			dx = mouseX - currentObjectPtr->curvePoints[currentObjectPtr->curveNumPoints - 1].x;
-			dy = mouseY - currentObjectPtr->curvePoints[currentObjectPtr->curveNumPoints - 1].y;
-		} else {
-			dx = mouseX - currentObjectPtr->curvePoints[9].x;
-			dy = mouseY - currentObjectPtr->curvePoints[9].y;
-		}
-
-		if (dx*dx + dy*dy <= CIRCLE_RAD_SQUARED) {
-			score += 300;
-			xil_printf("Slider Complete! Score: %d\r\n", score);
-			DeleteObject();
-		} else {
-			score += 100;
-			xil_printf("Slider broke! Score: %d\r\n", score);
-			isHolding = false;
-			DeleteObject();
-		}
-
+	} else if (isLMBRelease && isSliding) {
+		score += 100;
+		xil_printf("Slider broke! Score: %d\r\n", score);
+		DeleteObject();
 		isLMBRelease = false;
-	}
-	else if (isLMBRelease && isSpinning) {
+	} else if (isLMBRelease && isSpinning) {
 		isSpinning = false;
 		isLMBRelease = false;
 	}
+}
+
+#define SLIDER_SPEED 10
+
+// Moves the slider start towards point
+void MoveSlider(HitObject* currentObjectPtr, int x1, int y1) {
+	int x0 = currentObjectPtr->x;
+	int y0 = currentObjectPtr->y;
+
+	int dx = x1 - x0;
+	int dy = y1 - y0;
+
+	// Ignores if no move
+	if (dx == 0 && dy == 0)
+		return;
+
+	if (abs(dy) > abs(dx)) {
+		if (abs(dy) < SLIDER_SPEED) {
+			currentObjectPtr->x = x1;
+			currentObjectPtr->y = y1;
+		} else if (y0 < y1) {
+			currentObjectPtr->y += SLIDER_SPEED;
+			currentObjectPtr->x = x0 + dx * SLIDER_SPEED / dy;
+		} else {
+			currentObjectPtr->y -= SLIDER_SPEED;
+			currentObjectPtr->x = x0 - dx * SLIDER_SPEED / dy;
+		}
+	} else {
+		if (abs(dx) < SLIDER_SPEED) {
+			currentObjectPtr->x = x1;
+			currentObjectPtr->y = y1;
+		} else if (x0 < x1) {
+			currentObjectPtr->x += SLIDER_SPEED;
+			currentObjectPtr->y = y0 + dy * SLIDER_SPEED / dx;
+		} else {
+			currentObjectPtr->x -= SLIDER_SPEED;
+			currentObjectPtr->y = y0 - dy * SLIDER_SPEED / dx;
+		}
+	}
+}
+
+static void CheckSlider(HitObject *currentObjectPtr) {
+	int curveNumPoints = currentObjectPtr->curveNumPoints;
+	CurvePoint *curvePoints = currentObjectPtr->curvePoints;
+
+	int x0 = currentObjectPtr->x;
+	int y0 = currentObjectPtr->y;
+
+	int dx = mouseX - x0;
+	int dy = mouseY - y0;
+
+	if (dx*dx + dy*dy > CIRCLE_RAD_SQUARED) {
+		score += 100;
+		xil_printf("Slider broke! Score: %d\r\n", score);
+		DeleteObject();
+	}
+
+	int x1 = curvePoints[0].x;
+	int y1 = curvePoints[0].y;
+
+	if (x0 == x1 && y0 == y1) {
+		curvePointIndex++;
+
+		if (curveNumPoints <= 1 || curvePointIndex >= 10) {
+			score += 300;
+			xil_printf("Slider Complete! Score: %d \r\n", score);
+			DeleteObject();
+		} else {
+			currentObjectPtr->curveNumPoints--;
+			for (int i = 0; i < curveNumPoints; i++) {
+				curvePoints[i] = curvePoints[i+1];
+			}
+		}
+	}
+
+	MoveSlider(currentObjectPtr, x1, y1);
 }
 
 static void CheckSpin() {
@@ -475,24 +534,33 @@ void play_game()
 				AddObject();
 			}
 
-			if (time >= gameHitobjects[objectsDeleted].time + 3000) {
+			if (time >= gameHitobjects[objectsDeleted].time + 2500) {
 				DeleteObject();
 				xil_printf("Object expired!\r\n");
-			}
-
-			if (isScreenChanged) {
-				RedrawGameplay();
-			} else {
-				DisplayBufferAndMouse(mouseX, mouseY);
 			}
 
 //			if (isLMBPress) {
 //				CheckCollision(&gameHitobjects[objectsDeleted]);
 //			}
 
+			if (isSliding) {
+				CheckSlider(&gameHitobjects[objectsDeleted]);
+				isScreenChanged = true;
+			}
+
 			if (isSpinning)
 				CheckSpin();
+
+			if (isScreenChanged) {
+				isScreenChanged = false;
+				RedrawGameplay();
+			} else {
+				DisplayBufferAndMouse(mouseX, mouseY);
+			}
 		}
+
+		FillScreen(0x3F3F3F);
+		DisplayBufferAndMouse(mouseX, mouseY);
 
 		if (objectsDrawn != objectsDeleted)
 			xil_printf("ERROR: objectsDrawn:%d != objectsDeleted:%d\n", objectsDrawn, objectsDeleted);

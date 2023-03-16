@@ -64,10 +64,7 @@ typedef struct {
 	u16 Options; /* Option settings */
 } TmrCntrSetup;
 
-// Note: Next buffer + 0x7E9004
-int *image_output_buffer = (int *)0x02000000;
-int *image_mouse_buffer = (int *)0x02FD2008;
-int *image_buffer_pointer = (int *)0x037BB00C;
+extern int *image_output_buffer;
 
 // Sprites
 int *imageMenu;
@@ -107,7 +104,7 @@ void initTimer() {
 	TimerSetup.Options |= (XTTCPS_OPTION_INTERVAL_MODE | XTTCPS_OPTION_WAVE_DISABLE);
 	TimerSetup.Interval = 0;
 	TimerSetup.Prescaler = 0;
-	TimerSetup.OutputHz = 350;
+	TimerSetup.OutputHz = 333;
 
 	XTtcPs_SetOptions(&Timer, TimerSetup.Options);
 	XTtcPs_CalcIntervalFromFreq(&Timer, TimerSetup.OutputHz,&(TimerSetup.Interval), &(TimerSetup.Prescaler));

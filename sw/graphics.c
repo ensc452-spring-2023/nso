@@ -3,10 +3,12 @@
 #include "xil_printf.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
-extern int *image_output_buffer;
-extern int *image_mouse_buffer;
-extern int *image_buffer_pointer;
+// Note: Next buffer + 0x7E9004
+int *image_output_buffer = (int *)0x02000000;
+int *image_mouse_buffer = (int *)0x02FD2008;
+int *image_buffer_pointer = (int *)0x037BB00C;
 
 extern int *imageMenu;
 extern int *imageBg;
@@ -15,9 +17,6 @@ extern int *imageCircleOverlay;
 extern int *spinner;
 extern int *imageRanking;
 extern int *imageNum[10];
-
-static int mouseX = 0;
-static int mouseY = 0;
 
 void SetPixel(int *pixelAddr, int colour) {
 	*pixelAddr = colour;
