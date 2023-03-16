@@ -692,3 +692,13 @@ void UpdateMouse(bool isLMBIn, bool isRMBIn, int dx, int dy) {
 
 	//xil_printf("Cursor at (%d, %d)\r\n", mouseX, mouseY);
 }
+
+int getMouseX()
+{
+	return mouseX;
+}
+
+int getMouseY()
+{
+	return mouseY;
+}

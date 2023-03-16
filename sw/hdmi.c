@@ -19,12 +19,13 @@
 #define VPSS_FRAME_RATE     XVIDC_FR_60HZ
 #define VPSS_SCREEN_HEIGHT  1080
 #define VPSS_SCREEN_WIDTH   1920
+#define VPSS_BYTES_PER_PIXEL 4
 #define VPSS_INTERLACED     0
 #define I2C_DEVICE_ID       XPAR_XIICPS_0_DEVICE_ID
 #define VDMA_DEVICE_ID      XPAR_AXI_VDMA_0_DEVICE_ID
 #define VDMA_BUFFER_0       0x02000000
-#define VDMA_BUFFER_1       0x025F0000
-#define VDMA_BUFFER_2       0x02BE0000
+#define VDMA_BUFFER_1       0x02800000
+#define VDMA_BUFFER_2       0x03000000
 
 //min size of buffer = 1920*1080*3 = 5EEC00
 
@@ -218,6 +219,10 @@ int InitVDMA(unsigned int DeviceId) {
 			xil_printf("DMA Mismatch Error\r\n");
 		return XST_FAILURE;
 	}
+
+	memset((int*)VDMA_BUFFER_0, 0xF, VPSS_SCREEN_HEIGHT*VPSS_SCREEN_WIDTH*VPSS_BYTES_PER_PIXEL);
+	memset((int*)VDMA_BUFFER_1, 0xD18585, VPSS_SCREEN_HEIGHT*VPSS_SCREEN_WIDTH*VPSS_BYTES_PER_PIXEL);
+	memset((int*)VDMA_BUFFER_2, 0x1A7211, VPSS_SCREEN_HEIGHT*VPSS_SCREEN_WIDTH*VPSS_BYTES_PER_PIXEL);
 
 	#if DEBUG == 1
 		xil_printf("VDMA Setup Complete.\r\n");

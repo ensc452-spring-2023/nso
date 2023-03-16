@@ -8,7 +8,7 @@
 // Note: Next buffer + 0x7E9004
 int *image_output_buffer = (int *)0x02000000;
 int *image_mouse_buffer = (int *)0x02FD2008;
-int *image_buffer_pointer = (int *)0x037BB00C;
+int *image_buffer_pointer = (int *)0x03800000;
 
 extern int *imageMenu;
 extern int *imageBg;
@@ -27,7 +27,7 @@ void DisplayBuffer() {
 }
 
 unsigned int mouseColour = 0xFFFF00;
-static void DrawMouse(int x, int y) {
+void DrawMouse(int x, int y) {
 //	memcpy(image_mouse_buffer, image_buffer_pointer, NUM_BYTES_BUFFER);
 //	*(image_mouse_buffer + x + y * VGA_WIDTH) = mouseColour;
 //	*(image_mouse_buffer + x + (y+1) * VGA_WIDTH) = mouseColour;

@@ -102,4 +102,6 @@ void generateSlider(int x, int y, int curveNumPoints, CurvePoint * curvePoints);
 void generateSpinner(int x, int y);
 void generateObject(HitObject *currentObjectPtr);
 void UpdateMouse(bool isLMBIn, bool isRMBIn, int dx, int dy);
+int getMouseX();
+int getMouseY();
 

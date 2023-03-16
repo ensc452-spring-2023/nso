@@ -42,15 +42,16 @@
 #define TIMER_DEVICE_ID 		XPAR_PS7_TTC_0_DEVICE_ID
 #define BTN_INT 				XGPIO_IR_CH1_MASK
 #define TIMER_IRPT_INTR 		XPS_TTC0_0_INT_ID
+#define VBLANK_INTR				XPAR_FABRIC_INTERRUPT_CONVERTER_0_IRQ_OUT_INTR
 
-XGpio 			BTNInst;
-XScuGic 		INTCInst;
-FATFS 			FS_instance;
-XTtcPs 			Timer;//timer
-XVprocSs     	VPSSInst;
-XIicPs       	IicInst;
-XAxiVdma     	VDMAInst;
-static XUsbPs 			UsbInstance;	/* The instance of the USB Controller */
+XGpio BTNInst;
+XScuGic INTCInst;
+FATFS FS_instance;
+XTtcPs Timer; //timer
+XVprocSs VPSSInst;
+XIicPs IicInst;
+XAxiVdma VDMAInst;
+static XUsbPs UsbInstance; /* The instance of the USB Controller */
 
 static int btn_value;
 HitObject * gameHitobjects;
@@ -110,13 +111,15 @@ void initTimer() {
 
 	TmrCntrSetup TimerSetup;
 
-	TimerSetup.Options |= (XTTCPS_OPTION_INTERVAL_MODE | XTTCPS_OPTION_WAVE_DISABLE);
+	TimerSetup.Options |= (XTTCPS_OPTION_INTERVAL_MODE
+			| XTTCPS_OPTION_WAVE_DISABLE);
 	TimerSetup.Interval = 0;
 	TimerSetup.Prescaler = 0;
 	TimerSetup.OutputHz = 333;
 
 	XTtcPs_SetOptions(&Timer, TimerSetup.Options);
-	XTtcPs_CalcIntervalFromFreq(&Timer, TimerSetup.OutputHz,&(TimerSetup.Interval), &(TimerSetup.Prescaler));
+	XTtcPs_CalcIntervalFromFreq(&Timer, TimerSetup.OutputHz,
+			&(TimerSetup.Interval), &(TimerSetup.Prescaler));
 	XTtcPs_SetInterval(&Timer, TimerSetup.Interval);
 	XTtcPs_SetPrescaler(&Timer, TimerSetup.Prescaler);
 }
@@ -126,8 +129,7 @@ void initTimer() {
 // - called by the timer, button interrupt
 // - modified to change VGA output
 //----------------------------------------------------
-void BTN_Intr_Handler(void *InstancePtr)
-{
+void BTN_Intr_Handler(void *InstancePtr) {
 	// Disable GPIO interrupts
 	XGpio_InterruptDisable(&BTNInst, BTN_INT);
 
@@ -163,16 +165,15 @@ void BTN_Intr_Handler(void *InstancePtr)
 			DrawStats(score);
 	}
 
-	(void)XGpio_InterruptClear(&BTNInst, BTN_INT);
+	(void) XGpio_InterruptClear(&BTNInst, BTN_INT);
 
 	// Enable GPIO interrupts
 	XGpio_InterruptEnable(&BTNInst, BTN_INT);
 }
 
-static void TimerIntrHandler(void *CallBackRef)
-{
-	XTtcPs_GetInterruptStatus((XTtcPs *) CallBackRef);
-	XTtcPs_ClearInterruptStatus((XTtcPs *) CallBackRef, Interrupt_staus);
+static void TimerIntrHandler(void *CallBackRef) {
+	XTtcPs_GetInterruptStatus((XTtcPs * ) CallBackRef);
+	XTtcPs_ClearInterruptStatus((XTtcPs * ) CallBackRef, Interrupt_staus);
 
 	time++;
 }
@@ -185,30 +186,31 @@ XUsbPs_qTD *qTDPollReceiver = 0;
 #define MOUSE_LMB_MASK 0x01
 #define MOUSE_RMB_MASK 0x02
 
-static void UsbIntrHandler(void *CallBackRef, u32 Mask)
-{
+static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 	if (Mask & XUSBPS_IXR_UI_MASK) {
 		if (isSetupComplete) {
 			XUsbPs_dQHInvalidateCache(UsbInstance.HostConfig.QueueHead[1].pQH);
 
 			XUsbPs_dTDInvalidateCache(qTDPollReceiver); // Invalidate before CPU read ??output buff??~~~~~~~~~~~~~~
-			u8 *buffInput = (u8 *)XUsbPs_ReaddTD(qTDPollReceiver, XUSBPS_qTDANLP) - 1;
+			u8 *buffInput = (u8 *) XUsbPs_ReaddTD(qTDPollReceiver,
+					XUSBPS_qTDANLP) - 1;
 
 			bool isLMB = *buffInput & MOUSE_LMB_MASK;
 			bool isRMB = (*buffInput & MOUSE_RMB_MASK) >> 1;
 
-			#if WILLIAMMOUSE == 1
-				short *changeX = (short *)(buffInput + 1);
-				short *changeY = (short *)(buffInput + 3);
-			#else
-				short *changeX = (short *)(buffInput + 2);
-				short *changeY = (short *)(buffInput + 4);
-			#endif
+#if WILLIAMMOUSE == 1
+			short *changeX = (short *) (buffInput + 1);
+			short *changeY = (short *) (buffInput + 3);
+#else
+			short *changeX = (short *)(buffInput + 2);
+			short *changeY = (short *)(buffInput + 4);
+#endif
 
 			UpdateMouse(isLMB, isRMB, *changeX, *changeY);
 			//xil_printf("LMB = %d, RMB = %d, X = %4d, Y = %4d\r\n", isLMB, isRMB, *changeX, *changeY);
 
-			qTDPollReceiver = USB_qTDActivateIn(&UsbInstance.HostConfig.QueueHead[1], false, 0);
+			qTDPollReceiver = USB_qTDActivateIn(
+					&UsbInstance.HostConfig.QueueHead[1], false, 0);
 			return;
 		}
 
@@ -227,7 +229,8 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask)
 		return;
 	}
 
-	if ((XUsbPs_ReadReg(UsbInstance.Config.BaseAddress, XUSBPS_PORTSCR1_OFFSET) & XUSBPS_PORTSCR_CCS_MASK) == 0) {
+	if ((XUsbPs_ReadReg(UsbInstance.Config.BaseAddress, XUSBPS_PORTSCR1_OFFSET)
+			& XUSBPS_PORTSCR_CCS_MASK) == 0) {
 		xil_printf("Device Disconnected!\r\n\n");
 		isSetupComplete = false;
 		isPolling = false;
@@ -243,22 +246,28 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask)
 	}
 	xil_printf("Device Connected! ");
 
-	if ((XUsbPs_ReadReg(UsbInstance.Config.BaseAddress, XUSBPS_PORTSCR1_OFFSET) & XUSBPS_PORTSCR_PE_MASK) == 0) {
+	if ((XUsbPs_ReadReg(UsbInstance.Config.BaseAddress, XUSBPS_PORTSCR1_OFFSET)
+			& XUSBPS_PORTSCR_PE_MASK) == 0) {
 		xil_printf("Resetting...\r\n\n");
-		XUsbPs_SetBits(&UsbInstance, XUSBPS_PORTSCR1_OFFSET, XUSBPS_PORTSCR_PR_MASK);
+		XUsbPs_SetBits(&UsbInstance, XUSBPS_PORTSCR1_OFFSET,
+				XUSBPS_PORTSCR_PR_MASK);
 		return;
 	}
 
-	u32 deviceSpeed = (XUsbPs_ReadReg(UsbInstance.Config.BaseAddress, XUSBPS_PORTSCR1_OFFSET)
-			& XUSBPS_PORTSCR_PSPD_MASK) >> 26;
+	u32 deviceSpeed =
+			(XUsbPs_ReadReg(UsbInstance.Config.BaseAddress,
+					XUSBPS_PORTSCR1_OFFSET)
+					& XUSBPS_PORTSCR_PSPD_MASK) >> 26;
 
 	if (deviceSpeed == 0) {
 		xil_printf("Device operating at Full Speed.\r\n\n");
 	} else if (deviceSpeed == 1) {
-		xil_printf("Device operating at Low Speed. Not supported - ignoring!\r\n\n");
+		xil_printf(
+				"Device operating at Low Speed. Not supported - ignoring!\r\n\n");
 		return;
 	} else if (deviceSpeed == 2) {
-		xil_printf("Device operating at High Speed. Not supported - ignoring!\r\n\n");
+		xil_printf(
+				"Device operating at High Speed. Not supported - ignoring!\r\n\n");
 		return;
 	} else if (deviceSpeed == 3) {
 		xil_printf("Device not connected.\r\n\n");
@@ -268,25 +277,28 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask)
 //	USB_WriteSetupBuffer(buffSetup, 0, XUSBPS_REQ_SET_ADDRESS, 0xC, 0, 0); // Set Address 0x0C
 //	USB_WriteSetupBuffer(buffSetup, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0200, 0, 0x54); // Get Config
 
-
 	isSetupComplete = USB_SetupDevice(&UsbInstance, status);
 
 	// Enable Async
 	XUsbPs_SetBits(&UsbInstance, XUSBPS_CMD_OFFSET, XUSBPS_CMD_ASE_MASK);
 }
 
+void VBlank_Intr_Handler(void *InstancePtr) {
+	//xil_printf("60fps?");
+}
+
 //----------------------------------------------------
 // MAIN FUNCTION
 //----------------------------------------------------
-int main (void)
-{
+int main(void) {
 	int status;
 	//----------------------------------------------------
 	// INITIALIZE THE PERIPHERALS & SET DIRECTIONS OF GPIO
 	//----------------------------------------------------
 	// Initialize Push Buttons
 	status = XGpio_Initialize(&BTNInst, BTNS_DEVICE_ID);
-	if(status != XST_SUCCESS) return XST_FAILURE;
+	if (status != XST_SUCCESS)
+		return XST_FAILURE;
 	// Set all buttons direction to inputs
 	XGpio_SetDataDirection(&BTNInst, 1, 0xFF);
 
@@ -294,7 +306,8 @@ int main (void)
 
 	// Initialize interrupt controller
 	status = IntcInitFunction(INTC_DEVICE_ID, &BTNInst);
-	if(status != XST_SUCCESS) return XST_FAILURE;
+	if (status != XST_SUCCESS)
+		return XST_FAILURE;
 
 	XTtcPs_Start(&Timer);
 
@@ -302,11 +315,12 @@ int main (void)
 
 	// Run the USB setup
 	usbStatus = USB_Setup(&INTCInst, &UsbInstance,
-				XPAR_XUSBPS_0_DEVICE_ID, XPAR_XUSBPS_0_INTR, &UsbIntrHandler);
+	XPAR_XUSBPS_0_DEVICE_ID, XPAR_XUSBPS_0_INTR, &UsbIntrHandler);
 
 	// Set Output Buffer as Non-Cacheable
-	for (int i = 0; i <= 512; i++) {
-		Xil_SetTlbAttributes((INTPTR)(image_output_buffer + i * 2048), NORM_NONCACHE);
+	for (int i = 0; i <= 896; i++) {
+		Xil_SetTlbAttributes((INTPTR) (image_output_buffer + i * 2048),
+				NORM_NONCACHE);
 	}
 
 	loadSprites();
@@ -315,9 +329,7 @@ int main (void)
 
 	InitHdmi();
 
-
-	while(1)
-	{
+	while (1) {
 		main_menu();
 	}
 
@@ -328,42 +340,42 @@ int main (void)
 // INITIAL SETUP FUNCTIONS
 //----------------------------------------------------
 
-int InterruptSystemSetup(XScuGic *XScuGicInstancePtr)
-{
+int InterruptSystemSetup(XScuGic *XScuGicInstancePtr) {
 	// Enable interrupt
 	XGpio_InterruptEnable(&BTNInst, BTN_INT);
 	XGpio_InterruptGlobalEnable(&BTNInst);
 
 	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_INT,
-			 	 	 	 	 	 (Xil_ExceptionHandler)XScuGic_InterruptHandler,
-			 	 	 	 	 	 XScuGicInstancePtr);
+			(Xil_ExceptionHandler) XScuGic_InterruptHandler,
+			XScuGicInstancePtr);
 	Xil_ExceptionEnable();
-
 
 	return XST_SUCCESS;
 
 }
 
-int IntcInitFunction(u16 DeviceId, XGpio *GpioInstancePtr)
-{
+int IntcInitFunction(u16 DeviceId, XGpio *GpioInstancePtr) {
 	XScuGic_Config *IntcConfig;
 	int status;
 
 	// Interrupt controller initialisation
 	IntcConfig = XScuGic_LookupConfig(DeviceId);
-	status = XScuGic_CfgInitialize(&INTCInst, IntcConfig, IntcConfig->CpuBaseAddress);
-	if(status != XST_SUCCESS) return XST_FAILURE;
+	status = XScuGic_CfgInitialize(&INTCInst, IntcConfig,
+			IntcConfig->CpuBaseAddress);
+	if (status != XST_SUCCESS)
+		return XST_FAILURE;
 
 	// Call to interrupt setup
 	status = InterruptSystemSetup(&INTCInst);
-	if(status != XST_SUCCESS) return XST_FAILURE;
+	if (status != XST_SUCCESS)
+		return XST_FAILURE;
 
 	// Connect GPIO interrupt to handler
 	status = XScuGic_Connect(&INTCInst,
-					  	  	 INTC_GPIO_INTERRUPT_ID,
-					  	  	 (Xil_ExceptionHandler)BTN_Intr_Handler,
-					  	  	 (void *)GpioInstancePtr);
-	if(status != XST_SUCCESS) return XST_FAILURE;
+	INTC_GPIO_INTERRUPT_ID, (Xil_ExceptionHandler) BTN_Intr_Handler,
+			(void *) GpioInstancePtr);
+	if (status != XST_SUCCESS)
+		return XST_FAILURE;
 
 	// Enable GPIO interrupts interrupt
 	XGpio_InterruptEnable(GpioInstancePtr, 1);
@@ -373,13 +385,24 @@ int IntcInitFunction(u16 DeviceId, XGpio *GpioInstancePtr)
 	XScuGic_Enable(&INTCInst, INTC_GPIO_INTERRUPT_ID);
 
 	//set up the timer interrupt
-	XScuGic_Connect(&INTCInst, TIMER_IRPT_INTR, (Xil_ExceptionHandler)TimerIntrHandler, (void *)&Timer);
+	XScuGic_Connect(&INTCInst, TIMER_IRPT_INTR,
+			(Xil_ExceptionHandler) TimerIntrHandler, (void *) &Timer);
 
 	//enable the interrupt for the Timer at GIC
 	XScuGic_Enable(&INTCInst, TIMER_IRPT_INTR);
 
 	//enable interrupt on the timer
 	XTtcPs_EnableInterrupts(&Timer, XTTCPS_IXR_INTERVAL_MASK);
+
+	//Connect the interrupt handler to the GIC.
+	status = XScuGic_Connect(&INTCInst, VBLANK_INTR,
+			(Xil_ExceptionHandler) VBlank_Intr_Handler, 0);
+	if (status != XST_SUCCESS) {
+		return status;
+	}
+
+	//Enable the interrupt for this specific device.
+	XScuGic_Enable(&INTCInst, VBLANK_INTR);
 
 	return XST_SUCCESS;
 }

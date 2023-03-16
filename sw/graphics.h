@@ -62,4 +62,6 @@ void DrawStats(int score);
 void plotLine(int x0, int y0, int x1, int y1, int colour);
 void drawline(int x0, int y0, int x1, int y1, int colour);
 
+void DrawMouse(int x, int y);
+
 #endif
