@@ -67,7 +67,7 @@ void main_menu()
 
 		while(1)
 		{
-
+			//DrawMouse(int x, int y);
 		}
 		//SetPixel(image_output_pointer + ((VGA_WIDTH*200)+(100)), 0xFFFFFF);
 		//SetPixel(image_output_pointer + ((VGA_WIDTH*200)+(200)), 0x00FF00);
