@@ -38,21 +38,21 @@
 #include "xaxivdma.h"
 #include "iic_utils.h"
 #include "hdmi.h"
+#include "xil_cache.h"
 
 /*--------------------------------------------------------------*/
 /* Global Variables				 								*/
 /*--------------------------------------------------------------*/
-extern XVprocSs     VPSSInst;
-extern XIicPs       IicInst;
-extern XAxiVdma     VDMAInst;
+extern XVprocSs VPSSInst;
+extern XIicPs IicInst;
+extern XAxiVdma VDMAInst;
 
-int InitHdmi()
-{
-    IicConfig(I2C_DEVICE_ID);
-    InitVPSS(VPSS_DEVICE_ID);
-    InitVDMA(VDMA_DEVICE_ID);
+int InitHdmi() {
+	IicConfig(I2C_DEVICE_ID);
+	InitVPSS(VPSS_DEVICE_ID);
+	InitVDMA(VDMA_DEVICE_ID);
 
-    // Set the iic mux to the ADV7511
+	// Set the iic mux to the ADV7511
 	iic_write(&IicInst, 0x74, 0x2, 1);
 
 	//Check the state of the HPD signal
@@ -67,7 +67,8 @@ int InitHdmi()
 			if (monitor_connected) {
 				xil_printf("HDMI Monitor connected\r\n");
 			} else {
-				xil_printf("No HDMI Monitor connected / Monitor Disconnected\r\n");
+				xil_printf(
+						"No HDMI Monitor connected / Monitor Disconnected\r\n");
 			}
 			sleep(2);
 		}
@@ -84,18 +85,17 @@ int InitHdmi()
 	//Video Input Justification: Right justified
 	iic_write2(&IicInst, 0x39, 0x48, 0x08);
 
-    #if DEBUG == 1
-        xil_printf("HDMI Setup Complete!\r\n");
-    #endif
+#if DEBUG == 1
+	xil_printf("HDMI Setup Complete!\r\n");
+#endif
 
-    return XST_SUCCESS;
+	return XST_SUCCESS;
 }
 
-int InitVPSS(unsigned int DeviceId)
-{
-    int status;
+int InitVPSS(unsigned int DeviceId) {
+	int status;
 
-    //Configure the VPSS
+	//Configure the VPSS
 	XVprocSs_Config *VprocCfgPtr;
 	XVidC_VideoTiming const *TimingPtr;
 	XVidC_VideoStream StreamIn, StreamOut;
@@ -104,14 +104,15 @@ int InitVPSS(unsigned int DeviceId)
 	XVprocSs_CfgInitialize(&VPSSInst, VprocCfgPtr, VprocCfgPtr->BaseAddress);
 
 	//Get the resolution details
-	XVidC_VideoMode resId = XVidC_GetVideoModeId(VPSS_SCREEN_WIDTH, VPSS_SCREEN_HEIGHT, VPSS_FRAME_RATE, 0);
+	XVidC_VideoMode resId = XVidC_GetVideoModeId(VPSS_SCREEN_WIDTH,
+			VPSS_SCREEN_HEIGHT, VPSS_FRAME_RATE, 0);
 	TimingPtr = XVidC_GetTimingInfo(resId);
 
 	//Set the input stream
 	StreamIn.VmId = resId;
 	StreamIn.Timing = *TimingPtr;
 	StreamIn.ColorFormatId = VPSS_INPUT_COLOUR;
-	StreamIn.ColorDepth = VprocCfgPtr->ColorDepth;
+	StreamIn.ColorDepth = 8;
 	StreamIn.PixPerClk = VprocCfgPtr->PixPerClock;
 	StreamIn.FrameRate = VPSS_FRAME_RATE;
 	StreamIn.IsInterlaced = VPSS_INTERLACED;
@@ -133,11 +134,16 @@ int InitVPSS(unsigned int DeviceId)
 		return (XST_FAILURE);
 	}
 
-    #if DEBUG == 1
-        xil_printf("VPSS Started.\r\n");
-    #endif
+	//This is a very hacky way of doing this, i'm not sure why setting this reg to 0b1 or 0b11 or 0b10 flips the colours but it works.
+	Xil_Out32(
+			VPSSInst.Config.BaseAddress
+					+ XV_CSC_CTRL_ADDR_HWREG_INVIDEOFORMAT_DATA, 0x01);
 
-    return XST_SUCCESS;
+	#if DEBUG == 1
+		xil_printf("VPSS Started.\r\n");
+	#endif
+
+	return XST_SUCCESS;
 }
 
 int IicConfig(unsigned int DeviceIdPS) {
@@ -161,16 +167,16 @@ int IicConfig(unsigned int DeviceIdPS) {
 	//Set the IIC serial clock rate.
 	XIicPs_SetSClk(&IicInst, IIC_SCLK_RATE);
 
-    #if DEBUG == 1
-        xil_printf("IIC Setup Complete.\r\n");
-    #endif
+	#if DEBUG == 1
+		xil_printf("IIC Setup Complete.\r\n");
+	#endif
 
 	return XST_SUCCESS;
 }
 
 int InitVDMA(unsigned int DeviceId) {
 
-    int status;
+	int status;
 	XAxiVdma_Config *config = XAxiVdma_LookupConfig(DeviceId);
 	XAxiVdma_DmaSetup ReadCfg;
 	status = XAxiVdma_CfgInitialize(&VDMAInst, config, config->BaseAddress);
@@ -179,8 +185,8 @@ int InitVDMA(unsigned int DeviceId) {
 	}
 
 	ReadCfg.VertSizeInput = VPSS_SCREEN_HEIGHT;
-	ReadCfg.HoriSizeInput = VPSS_SCREEN_WIDTH * 3;
-	ReadCfg.Stride = VPSS_SCREEN_WIDTH * 3;
+	ReadCfg.HoriSizeInput = VPSS_SCREEN_WIDTH * 4;
+	ReadCfg.Stride = VPSS_SCREEN_WIDTH * 4;
 	ReadCfg.FrameDelay = 0;
 	ReadCfg.EnableCircularBuf = 0;
 	ReadCfg.EnableSync = 0;
@@ -213,11 +219,10 @@ int InitVDMA(unsigned int DeviceId) {
 		return XST_FAILURE;
 	}
 
-    #if DEBUG == 1
-        xil_printf("VDMA Setup Complete.\r\n");
-    #endif
+	#if DEBUG == 1
+		xil_printf("VDMA Setup Complete.\r\n");
+	#endif
 
 	return XST_SUCCESS;
 }
-
 

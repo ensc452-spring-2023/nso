@@ -58,11 +58,13 @@ int numberOfHitobjects = 0;
 u32 bgColour = 0x1F1F1F;
 
 // Define button values
-#define BTN_CENTER 1
-#define BTN_DOWN 2
-#define BTN_LEFT 4
-#define BTN_RIGHT 8
-#define BTN_UP 16
+#define BTN_CENTER 	1
+#define BTN_DOWN 	2
+#define BTN_LEFT 	4
+#define BTN_RIGHT 	8
+#define BTN_UP 		16
+
+#define WILLIAMMOUSE 1
 
 typedef struct {
 	u32 OutputHz; /* Output frequency */
@@ -195,11 +197,16 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask)
 			bool isLMB = *buffInput & MOUSE_LMB_MASK;
 			bool isRMB = (*buffInput & MOUSE_RMB_MASK) >> 1;
 
-			short *changeX = (short *)(buffInput + 2);
-			short *changeY = (short *)(buffInput + 4);
+			#if WILLIAMMOUSE == 1
+				short *changeX = (short *)(buffInput + 1);
+				short *changeY = (short *)(buffInput + 3);
+			#else
+				short *changeX = (short *)(buffInput + 2);
+				short *changeY = (short *)(buffInput + 4);
+			#endif
 
 			UpdateMouse(isLMB, isRMB, *changeX, *changeY);
-//			xil_printf("LMB = %d, RMB = %d, X = %4d, Y = %4d\r\n", isLMB, isRMB, *changeX, *changeY);
+			//xil_printf("LMB = %d, RMB = %d, X = %4d, Y = %4d\r\n", isLMB, isRMB, *changeX, *changeY);
 
 			qTDPollReceiver = USB_qTDActivateIn(&UsbInstance.HostConfig.QueueHead[1], false, 0);
 			return;
