@@ -64,6 +64,11 @@ void main_menu()
 		break;
 	case 'd':
 		memset(image_mouse_buffer, 0x3F3F3F, NUM_BYTES_BUFFER);
+
+		while(1)
+		{
+			//DrawMouse(int x, int y);
+		}
 		//SetPixel(image_output_pointer + ((VGA_WIDTH*200)+(100)), 0xFFFFFF);
 		//SetPixel(image_output_pointer + ((VGA_WIDTH*200)+(200)), 0x00FF00);
 		//SetPixel(temp_pointer + (VGA_WIDTH *100), 0x00FF00);

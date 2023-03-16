@@ -17,9 +17,9 @@
 /* Definitions					 								*/
 /*--------------------------------------------------------------*/
 #define NUM_STRIPES 8
-#define VGA_WIDTH 1280
-#define VGA_HEIGHT 1024
-#define NUM_BYTES_BUFFER 5242880
+#define VGA_WIDTH 1920
+#define VGA_HEIGHT 1080
+#define NUM_BYTES_BUFFER 8294400
 
 #define DIGIT_WIDTH 47
 #define DIGIT_HEIGHT 71

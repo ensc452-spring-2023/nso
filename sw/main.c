@@ -4,7 +4,11 @@
 #include "xscugic.h"
 #include "xil_exception.h"
 #include "xil_printf.h"
+
 #include "xttcps.h"
+#include "xvprocss.h"
+#include "xiicps.h"
+#include "xaxivdma.h"
 
 #include "xpseudo_asm.h"
 #include "xreg_cortexa9.h"
@@ -29,33 +33,38 @@
 #include "game_logic.h"
 #include "graphics.h"
 #include "sd.h"
+#include "hdmi.h"
 
 // Parameter definitions
-#define INTC_DEVICE_ID 		XPAR_PS7_SCUGIC_0_DEVICE_ID
-#define BTNS_DEVICE_ID		XPAR_AXI_GPIO_0_DEVICE_ID
-#define INTC_GPIO_INTERRUPT_ID XPAR_FABRIC_AXI_GPIO_0_IP2INTC_IRPT_INTR
-#define TIMER_DEVICE_ID XPAR_PS7_TTC_0_DEVICE_ID
-#define BTN_INT 			XGPIO_IR_CH1_MASK
-#define TIMER_IRPT_INTR XPS_TTC0_0_INT_ID
+#define INTC_DEVICE_ID 			XPAR_PS7_SCUGIC_0_DEVICE_ID
+#define BTNS_DEVICE_ID			XPAR_AXI_GPIO_0_DEVICE_ID
+#define INTC_GPIO_INTERRUPT_ID 	XPAR_FABRIC_AXI_GPIO_0_IP2INTC_IRPT_INTR
+#define TIMER_DEVICE_ID 		XPAR_PS7_TTC_0_DEVICE_ID
+#define BTN_INT 				XGPIO_IR_CH1_MASK
+#define TIMER_IRPT_INTR 		XPS_TTC0_0_INT_ID
 
-XGpio BTNInst;
-XScuGic INTCInst;
-FATFS FS_instance;
+XGpio 			BTNInst;
+XScuGic 		INTCInst;
+FATFS 			FS_instance;
+XTtcPs 			Timer;//timer
+XVprocSs     	VPSSInst;
+XIicPs       	IicInst;
+XAxiVdma     	VDMAInst;
+static XUsbPs 			UsbInstance;	/* The instance of the USB Controller */
+
 static int btn_value;
 HitObject * gameHitobjects;
 int numberOfHitobjects = 0;
-static XTtcPs Timer;//timer
-
-static XUsbPs UsbInstance;	/* The instance of the USB Controller */
-
 u32 bgColour = 0x1F1F1F;
 
 // Define button values
-#define BTN_CENTER 1
-#define BTN_DOWN 2
-#define BTN_LEFT 4
-#define BTN_RIGHT 8
-#define BTN_UP 16
+#define BTN_CENTER 	1
+#define BTN_DOWN 	2
+#define BTN_LEFT 	4
+#define BTN_RIGHT 	8
+#define BTN_UP 		16
+
+#define WILLIAMMOUSE 1
 
 typedef struct {
 	u32 OutputHz; /* Output frequency */
@@ -188,11 +197,16 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask)
 			bool isLMB = *buffInput & MOUSE_LMB_MASK;
 			bool isRMB = (*buffInput & MOUSE_RMB_MASK) >> 1;
 
-			short *changeX = (short *)(buffInput + 2);
-			short *changeY = (short *)(buffInput + 4);
+			#if WILLIAMMOUSE == 1
+				short *changeX = (short *)(buffInput + 1);
+				short *changeY = (short *)(buffInput + 3);
+			#else
+				short *changeX = (short *)(buffInput + 2);
+				short *changeY = (short *)(buffInput + 4);
+			#endif
 
 			UpdateMouse(isLMB, isRMB, *changeX, *changeY);
-//			xil_printf("LMB = %d, RMB = %d, X = %4d, Y = %4d\r\n", isLMB, isRMB, *changeX, *changeY);
+			//xil_printf("LMB = %d, RMB = %d, X = %4d, Y = %4d\r\n", isLMB, isRMB, *changeX, *changeY);
 
 			qTDPollReceiver = USB_qTDActivateIn(&UsbInstance.HostConfig.QueueHead[1], false, 0);
 			return;
@@ -298,6 +312,8 @@ int main (void)
 	loadSprites();
 	screen = SCREEN_MENU;
 	DrawMenu();
+
+	InitHdmi();
 
 
 	while(1)
