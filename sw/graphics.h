@@ -28,10 +28,14 @@
 #define CIRCLE_RAD_SQUARED 4096 //64^2
 #define SPINNER_WIDTH 689
 #define SPINNER_HALF 344
-#define CENTER_X 640
-#define CENTER_Y 512
+#define CENTER_X 960
+#define CENTER_Y 540
 #define RANKING_WIDTH 660
 #define RANKING_HEIGHT 700
+
+#define NUM_A_CIRCLES 66
+#define A_CIRCLE_WIDTH 255
+#define A_CIRCLE_HALF 127
 
 #define PIXEL_BYTES 4
 
@@ -42,6 +46,7 @@ void SetPixel(int *pixelAddr, int colour);
 void DisplayBuffer();
 void DisplayBufferAndMouse();
 void FillScreen(int colour);
+void DrawRectangle(int x, int y, int width, int height, int colour);
 void PixelAlpha(int *under, int *over);
 
 // Top Left
@@ -50,6 +55,8 @@ void DrawSprite(int *sprite, int width, int height, int posX, int posY);
 void DrawSliderEnd(int x, int y);
 // Centered
 void DrawCircle(int x, int y);
+// Centered
+void DrawApproachCircle(int x, int y, int index);
 // Centered
 void DrawSpinner(int x, int y);
 // Top Left

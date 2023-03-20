@@ -19,8 +19,10 @@
 /*--------------------------------------------------------------*/
 #define bufferSize 32
 #define PLAY_AREA_SCALER 2
-#define PLAY_AREA_OFFSET 128
+#define PLAY_AREA_OFFSET_X 448
+#define PLAY_AREA_OFFSET_Y 156
 #define DRAWN_OBJECTS_MAX 20 // manually init array to -1 in play_game (change to linked list soon)
+#define CLOCK_HZ 1000
 
 /*--------------------------------------------------------------*/
 /* Structs				 										*/
@@ -88,6 +90,7 @@ typedef struct
 	int length;
 	int * edgeSounds;
 	char * edgeSets;
+	int endTime;
 
 } HitObject;
 
@@ -97,8 +100,8 @@ typedef struct
 
 void parse_beatmaps(char *filename, FATFS FS_instance);
 void play_game();
-void generateHitCircle(int x, int y);
-void generateSlider(int x, int y, int curveNumPoints, CurvePoint * curvePoints);
+void generateHitCircle(int x, int y, int index);
+void generateSlider(int x, int y, int index, int curveNumPoints, CurvePoint* curvePoints);
 void generateSpinner(int x, int y);
 void generateObject(HitObject *currentObjectPtr);
 void UpdateMouse(bool isLMBIn, bool isRMBIn, int dx, int dy);

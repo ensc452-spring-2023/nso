@@ -9,12 +9,14 @@
  /	Helper functions for loading stuff from sd card
  /----------------------------------------------------------------------------*/
 
-#define DEBUG 0
+#define DEBUG 1
 
 /*--------------------------------------------------------------*/
 /* Include Files				 								*/
 /*--------------------------------------------------------------*/
 #include <stdlib.h>
+#include <stdio.h>
+#include "graphics.h"
 #include "ff.h"
 #include "xil_printf.h"
 
@@ -29,6 +31,7 @@ extern int *imageCircleOverlay;
 extern int *spinner;
 extern int *imageRanking;
 extern int *imageNum[10];
+extern int *approachCircle[NUM_A_CIRCLES];
 
 /* -------------------------------------------/
  * loadFileFromSD()
@@ -109,5 +112,12 @@ void loadSprites()
   	loadFileFromSD("Sprites\\rank.bin", &imageRanking);
   	loadFileFromSD("Sprites\\menu.bin", &imageMenu);
   	loadFileFromSD("Sprites\\bgG.bin", &imageBg);
+
+  	for (int i = 0; i < NUM_A_CIRCLES; i++) {
+  		char tempPath[32];
+  		snprintf(tempPath, sizeof(tempPath), "Sprites\\ac\\ac%02d.bin", i);
+
+  		loadFileFromSD(tempPath, &approachCircle[i]);
+  	}
 }
 

@@ -65,7 +65,7 @@ u32 bgColour = 0x1F1F1F;
 #define BTN_RIGHT 	8
 #define BTN_UP 		16
 
-#define WILLIAMMOUSE 1
+#define WILLIAMMOUSE 0
 
 typedef struct {
 	u32 OutputHz; /* Output frequency */
@@ -84,6 +84,7 @@ int *imageCircleOverlay;
 int *spinner;
 int *imageRanking;
 int *imageNum[10];
+int *approachCircle[NUM_A_CIRCLES];
 
 long time = 0;
 
@@ -115,7 +116,7 @@ void initTimer() {
 			| XTTCPS_OPTION_WAVE_DISABLE);
 	TimerSetup.Interval = 0;
 	TimerSetup.Prescaler = 0;
-	TimerSetup.OutputHz = 333;
+	TimerSetup.OutputHz = CLOCK_HZ;
 
 	XTtcPs_SetOptions(&Timer, TimerSetup.Options);
 	XTtcPs_CalcIntervalFromFreq(&Timer, TimerSetup.OutputHz,
@@ -176,6 +177,7 @@ static void TimerIntrHandler(void *CallBackRef) {
 	XTtcPs_ClearInterruptStatus((XTtcPs * ) CallBackRef, Interrupt_staus);
 
 	time++;
+	GameTick();
 }
 
 int status = 0;
@@ -324,10 +326,10 @@ int main(void) {
 	}
 
 	loadSprites();
+	InitHdmi();
+
 	screen = SCREEN_MENU;
 	DrawMenu();
-
-	InitHdmi();
 
 	while (1) {
 		main_menu();
