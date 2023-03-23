@@ -637,6 +637,13 @@ void play_game()
 		isPlaying = true;
 		objectsDrawn = 0;
 		objectsDeleted = 0;
+		drawnObjectHead = 0;
+		drawnObjectTail = 0;
+
+		for (int i = 0; i < DRAWN_OBJECTS_MAX; i++) {
+			drawnObjectIndices[i] = -1;
+		}
+
 		time = -2500;
 		score = 0;
 		health = 300;
