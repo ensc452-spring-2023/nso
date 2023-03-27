@@ -18,8 +18,6 @@
 #include "xusbps.h"			/* USB controller driver */
 #include "xusbps_endpoint.h"
 #include "xusbps_hw.h"
-#include "xusbps_ch9.h"		/* Generic Chapter 9 handling code */
-#include "xusbps_class_storage.h"	/* Storage class handling code */
 
 #include <stdio.h>
 #include <stdlib.h>

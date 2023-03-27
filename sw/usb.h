@@ -14,10 +14,12 @@
 
 #include "xusbps_endpoint.h"
 #include "xusbps.h"
-#include "xusbps_ch9.h"
 #include "xscugic.h"
 
 #include <stdbool.h>
+
+#define XUSBPS_REQ_GET_DESCRIPTOR	0x06
+#define XUSBPS_REQ_SET_CONFIGURATION	0x09
 
 // Polling rate in ms (1, 2, 4, 8)
 #define POLLING_MS 8
@@ -27,7 +29,7 @@
 #pragma data_alignment = 32
 u8 Buffer[MEMORY_SIZE];
 #else
-u8 Buffer[MEMORY_SIZE] ALIGNMENT_CACHELINE;
+u8 Buffer[MEMORY_SIZE] __attribute__ ((aligned (32)));
 #endif
 
 bool USB_SetupDevice(XUsbPs *UsbInstancePtr, int status);
