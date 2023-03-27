@@ -16,7 +16,6 @@
 /*--------------------------------------------------------------*/
 /* Definitions					 								*/
 /*--------------------------------------------------------------*/
-#define NUM_STRIPES 8
 #define VGA_WIDTH 1920
 #define VGA_HEIGHT 1080
 #define NUM_BYTES_BUFFER 8294400
@@ -44,7 +43,7 @@
 /*--------------------------------------------------------------*/
 void SetPixel(int *pixelAddr, int colour);
 void DisplayBuffer();
-void DisplayBufferAndMouse();
+void DisplayBufferAndMouse(int x, int y);
 void FillScreen(int colour);
 void DrawRectangle(int x, int y, int width, int height, int colour);
 void PixelAlpha(int *under, int *over);
