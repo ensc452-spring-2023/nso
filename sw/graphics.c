@@ -222,8 +222,8 @@ void DrawStats(int score) {
 	memcpy(image_buffer_pointer, imageBg, NUM_BYTES_BUFFER);
 	DrawSprite(imageRanking, RANKING_WIDTH, RANKING_HEIGHT, 0, 200);
 	DrawInt(score, 7, 150, 210);
-	DrawInt(score, 3, 20, 635);
-	DrawInt(score, 3, 310, 635);
+	DrawInt(0, 3, 20, 635);
+	DrawInt(0, 3, 310, 635);
 	DisplayBuffer();
 }
 

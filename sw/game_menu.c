@@ -293,6 +293,7 @@ void settings_menu()
  /-------------------------------------------*/
 void highscore_menu()
 {
+	DrawStats(score);
 	xil_printf("Score:%d\n\r", score);
 	xil_printf("Accuracy:%c\n\r", '-');
 	xil_printf("Play again? \t(p)\n\r");
