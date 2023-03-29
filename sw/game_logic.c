@@ -49,13 +49,13 @@ static bool isLMBRelease = false;
 
 #define ROTATION_CCW 1
 #define ROTATION_CW 2
-// 4x u8 buffer for storing quadrant changes
-u32 rotation = 0;
-int quadrant = 0;
-int prevQuadrant = 0;
-int spins = 0;
 
-double sliderSpeed = .5;
+static u32 rotation = 0; // 4x u8 buffer for storing quadrant changes
+static int quadrant = 0;
+static int prevQuadrant = 0;
+static int spins = 0;
+
+static double sliderSpeed = .5;
 
 /*-------------------------------------------/
  / parse_beatmaps()
@@ -546,7 +546,7 @@ static void CheckSpin() {
 		}
 	}
 
-	u8 *tempRotation = &rotation;
+	u8 *tempRotation = (u8 *)&rotation;
 	xil_printf("%d -> %d, %d%d%d%d\r\n", prevQuadrant, quadrant, tempRotation[0], tempRotation[1], tempRotation[2], tempRotation[3]);
 
 	if (rotation == 0x01010101) {
@@ -615,6 +615,31 @@ void GameTick()
 	}
 }
 
+// Resets gameplay variables to defaults
+static void game_init()
+{
+	isPlaying = true;
+	isSliding = false;
+	isSpinning = false;
+
+	isLMBPress = false;
+	isRMBPress = false;
+	isLMBRelease = false;
+
+	objectsDrawn = 0;
+	objectsDeleted = 0;
+	drawnObjectHead = 0;
+	drawnObjectTail = 0;
+
+	for (int i = 0; i < DRAWN_OBJECTS_MAX; i++) {
+		drawnObjectIndices[i] = -1;
+	}
+
+	time = -2500;
+	score = 0;
+	health = 300;
+}
+
 /*-------------------------------------------/
  / play_game()
  /--------------------------------------------/
@@ -633,24 +658,11 @@ void play_game()
 	{
 	case 'y':
 		RedrawGameplay();
-
-		isPlaying = true;
-		objectsDrawn = 0;
-		objectsDeleted = 0;
-		drawnObjectHead = 0;
-		drawnObjectTail = 0;
-
-		for (int i = 0; i < DRAWN_OBJECTS_MAX; i++) {
-			drawnObjectIndices[i] = -1;
-		}
-
-		time = -2500;
-		score = 0;
-		health = 300;
+		game_init();
 
 		while (objectsDeleted < numberOfHitobjects && isPlaying)
 		{
-			int startTime = time;
+			//int startTime = time;
 
 			if (isScreenChanged) {
 				isScreenChanged = false;
@@ -659,8 +671,8 @@ void play_game()
 				DisplayBufferAndMouse(mouseX, mouseY);
 			}
 
-			int duration = (time - startTime) * 1000 / CLOCK_HZ;
-			int fps = 1000 / duration;
+			//int duration = (time - startTime) * 1000 / CLOCK_HZ;
+			//int fps = 1000 / duration;
 			//xil_printf("					Draw Time:%3dms FPS:%3d\r\n", duration, fps);
 		}
 

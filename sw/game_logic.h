@@ -99,6 +99,7 @@ typedef struct
 /*--------------------------------------------------------------*/
 
 void parse_beatmaps(char *filename, FATFS FS_instance);
+void GameTick();
 void play_game();
 void generateHitCircle(int x, int y, int index);
 void generateSlider(int x, int y, int index, int curveNumPoints, CurvePoint* curvePoints);
@@ -107,4 +108,3 @@ void generateObject(HitObject *currentObjectPtr);
 void UpdateMouse(bool isLMBIn, bool isRMBIn, int dx, int dy);
 int getMouseX();
 int getMouseY();
-
