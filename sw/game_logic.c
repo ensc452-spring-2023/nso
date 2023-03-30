@@ -1,27 +1,24 @@
-/*----------------------------------------------------------------------------/
- /  !nso - Game Logic                                                         /
- /----------------------------------------------------------------------------/
+/*-----------------------------------------------------------------------------/
+ /	!nso - Game Logic														   /
+ /-----------------------------------------------------------------------------/
  /	William Zhang
  /	04/03/2023
- /	game_logic.h
+ /	game_logic.c
  /
  /	Contains all the code regarding game logic of the game.
  /----------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------*/
-/* Include Files				 								*/
+/* Include Files												*/
 /*--------------------------------------------------------------*/
-#include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
-#include "ff.h"
-#include "game_logic.h"
+#include <stdlib.h>
 #include "xil_printf.h"
-#include "sleep.h"
+#include "game_logic.h"
 #include "graphics.h"
 
 /*--------------------------------------------------------------*/
-/* Global Variables				 								*/
+/* Global Variables												*/
 /*--------------------------------------------------------------*/
 extern long time;
 extern HitObject * gameHitobjects;
@@ -55,220 +52,7 @@ static int quadrant = 0;
 static int prevQuadrant = 0;
 static int spins = 0;
 
-static double sliderSpeed = .5;
-
-/*-------------------------------------------/
- / parse_beatmaps()
- /--------------------------------------------/
- / Takes an input .osu file and parses the
- / game data into a global hit object
- / array. Will mount the sd card into 0:/
- /-------------------------------------------*/
-void parse_beatmaps(char *filename, FATFS FS_instance)
-{
-	FRESULT result;
-	FIL beatmapFile;
-	char buffer[4096];
-
-	free(gameHitobjects);
-	gameHitobjects = (HitObject *) malloc(512 * sizeof(HitObject));
-
-	if (gameHitobjects == NULL) {
-		xil_printf("ERROR: could not malloc memory for HitObject Array %d\r\n", sizeof(HitObject));
-		return;
-	}
-
-
-	numberOfHitobjects = 0;
-
-	xil_printf("Parsing beatmap: %s\n\r", filename);
-
-	result = f_mount(&FS_instance, "0:/", 1);
-	if (result != 0)
-	{
-		xil_printf("Couldn't mount SD Card.\r\n");
-		free(gameHitobjects);
-		return;
-	}
-
-	result = f_open(&beatmapFile, filename, FA_READ);
-	if (result != 0)
-	{
-		xil_printf("File not found");
-		free(gameHitobjects);
-		return;
-	}
-
-	f_gets(buffer, 32, &beatmapFile);
-	xil_printf("Top of File:", buffer);
-
-	HitObject test;
-
-	int sliderMultiplier = 0;
-	int beatLength = 0;
-
-	while (f_gets(buffer, 32, &beatmapFile) != NULL)
-	{
-		if (buffer[0] == '[')
-		{
-			xil_printf("Reading Section: %s", buffer);
-			if (buffer[1] == 'D') { // Difficulty
-				while (f_gets(buffer, 4096, &beatmapFile) != NULL) {
-					char *setting = strtok(buffer, ":");
-					if (strcmp(setting, "SliderMultiplier") == 0) {
-						float tempMultiplier = atof(strtok(NULL, "\n"));
-						sliderMultiplier = (int)(tempMultiplier * 100 * PLAY_AREA_SCALER);
-						break;
-					}
-				}
-			} else if (buffer[1] == 'T') { // TimingPoints
-				f_gets(buffer, 4096, &beatmapFile);
-				strtok(buffer, ",");
-				beatLength = atoi(strtok(NULL, ","));
-
-				sliderSpeed = (double)sliderMultiplier * (double)PLAY_AREA_SCALER / (double)beatLength;
-			}
-			else if (buffer[1] == 'H')
-			{ //Hit Objects Section
-				while (f_gets(buffer, 4096, &beatmapFile) != NULL)
-				{
-
-					u8 temp_type = 0xFF;
-					char objectParamsBuffer[4096];
-
-					//osupixel is equivalent to 640x480
-					test.x = atoi(strtok(buffer, ",")) * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_X;
-					test.y = atoi(strtok(NULL, ",")) * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_Y;
-					test.time = atoi(strtok(NULL, ","));
-					temp_type = atoi(strtok(NULL, ","));
-					test.hitSound = atoi(strtok(NULL, ","));
-
-					//bit 2 - New Combo
-					if ((temp_type & 0b00000100) == 0b00000100)
-					{
-						test.newCombo = 1;
-					}
-					else
-					{
-						test.newCombo = 0;
-					}
-
-					//bit 0 - Hit Circle
-					if ((temp_type & 0b00000001) == 0b00000001)
-					{
-						test.type = 0;
-					}
-					//bit 1 - Slider
-					if ((temp_type & 0b00000010) == 0b00000010)
-					{
-						test.type = 1;
-
-						strcpy(objectParamsBuffer, strtok(NULL, ","));
-						test.curveType = objectParamsBuffer[0];
-						test.slides = atoi(strtok(NULL, ","));
-						test.length = atoi(strtok(NULL, ","));
-						//test.edgeSounds = strtok(NULL, ",");
-						//test.edgeSets = strtok(NULL, ",");
-
-						//xil_printf("\r\n");
-						//xil_printf("              >> %s\r\n", objectParamsBuffer);
-
-						char * pObjectParams, *p, *temp;
-						pObjectParams = strdup(objectParamsBuffer);
-						temp = pObjectParams;
-
-						test.curvePoints = (CurvePoint *) malloc(10 * sizeof(CurvePoint));
-						if (test.curvePoints == NULL) {
-							xil_printf("ERROR: could not malloc memory for curvePoints array\r\n");
-							return;
-						}
-						test.curveNumPoints = -1;
-
-						while ((p = strsep(&pObjectParams, "|")) != NULL)
-						{
-							//printf("<<%s>>\r\n", p);
-
-							if (test.curveNumPoints >= 0 && test.curveNumPoints < 10)
-							{
-								int x = 0;
-								int y = 0;
-								sscanf(p, "%d:%d", &x, &y);
-
-								//osupixel is equivalent to 640x480
-								test.curvePoints[test.curveNumPoints].x = x * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_X;
-								test.curvePoints[test.curveNumPoints].y = y * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_Y;
-
-								//test.curvePoints[test.curveNumPoints].x = x;
-								//test.curvePoints[test.curveNumPoints].y = y;
-								//xil_printf("x: %d y:%d ", test.curvePoints[test.curveNumPoints].x, test.curvePoints[test.curveNumPoints].y);
-							}
-							test.curveNumPoints++;
-						}
-
-						free(temp);
-
-						int sv = 1; // slider velocity multiplier given by the effective inherited timing point (assumed 1 until we parse them)
-						test.endTime = test.length * beatLength / (sliderMultiplier * sv) + test.time;
-
-						//xil_printf("\r\n");
-					}
-
-					//bit 3 - Spinner
-					if ((temp_type & 0b00001000) == 0b00001000)
-					{
-						test.type = 3;
-						test.endTime = atoi(strtok(NULL, ","));
-					}
-					//bit 7 - osu!mania hold
-					if ((temp_type & 0b10000000) == 0b10000000)
-					{
-						test.type = 7;
-						xil_printf("ERROR: WHY ARE YOU HERE?\r\n");
-					}
-
-					if ((temp_type & 0b01110000) >> 4 > 0)
-					{
-						xil_printf("Skip %d combos\r\n", (temp_type & 0b01110000) >> 3);
-					}
-
-					memcpy(&gameHitobjects[numberOfHitobjects++], &test, sizeof(HitObject));
-
-					if (test.newCombo)
-					{
-						xil_printf("New Combo >> ");
-					}
-
-					if (test.type == 0)
-					{
-						xil_printf("Hit Circle - Position: [%d,%d] Time: [%d]\r\n", test.x, test.y, test.time);
-					}
-					else if (test.type == 1)
-					{
-						xil_printf("Slider - Position: [%d,%d] Time: [%d] CT:[%c] S:[%d] L:[%d] \r\n", test.x, test.y, test.time, test.curveType,
-								test.slides, test.length);
-						xil_printf("\t\t>>>> From Points: (%d,%d)", test.x, test.y);
-						for (int i = 0; i < test.curveNumPoints; ++i) {
-							if (i < 10) {
-								xil_printf("-(%d,%d)",test.curvePoints[i].x,test.curvePoints[i].y);
-							}
-						}
-						xil_printf("\r\n");
-					}
-					else if (test.type == 3)
-					{
-						xil_printf("Spinner - Position: [%d,%d] Time: [%d]\r\n", test.x, test.y, test.time);
-					}
-					else
-					{
-						xil_printf("Unknown Hit Object\r\n");
-					}
-				}
-			}
-		}
-	}
-
-	f_close(&beatmapFile);
-}
+double sliderSpeed = .5;
 
 bool isScreenChanged = false;
 int objectsDrawn = 0;
