@@ -34,6 +34,7 @@ extern int beatoffset;
 extern int *image_buffer_pointer;
 extern int *image_mouse_buffer;
 
+static HitObject *gameHitobjects;
 int score = 0;
 
 /*-------------------------------------------/
@@ -160,8 +161,8 @@ void song_select_menu()
 		{
 			xil_printf("Selected Song 1\r\n");
 		}
-		parse_beatmaps(files[0], FS_instance);
-		play_game();
+		gameHitobjects = parse_beatmaps(files[0], FS_instance);
+		play_game(gameHitobjects);
 		highscore_menu();
 		break;
 	case '2':
@@ -174,8 +175,8 @@ void song_select_menu()
 		{
 			xil_printf("Selected Song 2\r\n");
 		}
-		parse_beatmaps(files[1], FS_instance);
-		play_game();
+		gameHitobjects = parse_beatmaps(files[1], FS_instance);
+		play_game(gameHitobjects);
 		highscore_menu();
 		break;
 	case '3':
@@ -188,8 +189,8 @@ void song_select_menu()
 		{
 			xil_printf("Selected Song 3\r\n");
 		}
-		parse_beatmaps(files[2], FS_instance);
-		play_game();
+		gameHitobjects = parse_beatmaps(files[2], FS_instance);
+		play_game(gameHitobjects);
 		highscore_menu();
 		break;
 	case '4':
@@ -202,8 +203,8 @@ void song_select_menu()
 		{
 			xil_printf("Selected Song 4\r\n");
 		}
-		parse_beatmaps(files[3], FS_instance);
-		play_game();
+		gameHitobjects = parse_beatmaps(files[3], FS_instance);
+		play_game(gameHitobjects);
 		highscore_menu();
 		break;
 	case '5':
@@ -216,8 +217,8 @@ void song_select_menu()
 		{
 			xil_printf("Selected Song 5\r\n");
 		}
-		parse_beatmaps(files[4], FS_instance);
-		play_game();
+		gameHitobjects = parse_beatmaps(files[4], FS_instance);
+		play_game(gameHitobjects);
 		highscore_menu();
 		break;
 	case 'b':
@@ -306,12 +307,14 @@ void highscore_menu()
 	switch (input)
 	{
 	case 'p':
-		play_game();
+		play_game(gameHitobjects);
 		highscore_menu();
 		break;
 	case 'm':
+		free_hitobjects(gameHitobjects);
 		break;
 	default:
+		free_hitobjects(gameHitobjects);
 		main_menu();
 		break;
 	}

@@ -20,13 +20,13 @@
 /*--------------------------------------------------------------*/
 /* Global Variables												*/
 /*--------------------------------------------------------------*/
-extern HitObject *gameHitobjects;
 extern int numberOfHitobjects;
 extern double sliderSpeed;
 
 /*--------------------------------------------------------------*/
 /* Local Variables												*/
 /*--------------------------------------------------------------*/
+static HitObject *gameHitobjects;
 static HitObject test;
 static FIL beatmapFile;
 static char buffer[4096];
@@ -75,29 +75,30 @@ static void parse_slider()
 	pObjectParams = strdup(objectParamsBuffer);
 	temp = pObjectParams;
 
-	test.curvePoints = (CurvePoint *)malloc(10 * sizeof(CurvePoint));
-	if (test.curvePoints == NULL) {
-		xil_printf("ERROR: could not malloc memory for curvePoints array\r\n");
-		return;
-	}
 	test.curveNumPoints = -1;
 
 	while ((p = strsep(&pObjectParams, "|")) != NULL) {
 		//printf("<<%s>>\r\n", p);
 
-		if (test.curveNumPoints >= 0 && test.curveNumPoints < 10) {
+		if (test.curveNumPoints >= 0) {
 			int x = 0;
 			int y = 0;
 			sscanf(p, "%d:%d", &x, &y);
 
 			//osupixel is equivalent to 640x480
-			test.curvePoints[test.curveNumPoints].x = x * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_X;
-			test.curvePoints[test.curveNumPoints].y = y * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_Y;
+			Node_t *currNode = ll_append(&test.curvePointsTail, sizeof(CurvePoint));
+			if (currNode == NULL)
+				break;
 
-			//test.curvePoints[test.curveNumPoints].x = x;
-			//test.curvePoints[test.curveNumPoints].y = y;
-			//xil_printf("x: %d y:%d ", test.curvePoints[test.curveNumPoints].x, test.curvePoints[test.curveNumPoints].y);
+			CurvePoint *point = (CurvePoint *)currNode->data;
+
+			point->x = x * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_X;
+			point->y = y * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_Y;
 		}
+
+		if (test.curveNumPoints == 0)
+			test.curvePointsHead = test.curvePointsTail;
+
 		test.curveNumPoints++;
 	}
 
@@ -121,10 +122,12 @@ static void print_object(HitObject object)
 		xil_printf("Slider - Position: [%d,%d] Time: [%d] CT:[%c] S:[%d] L:[%d] \r\n", object.x, object.y, object.time, object.curveType,
 			object.slides, object.length);
 		xil_printf("\t\t>>>> From Points: (%d,%d)", object.x, object.y);
+
+		Node_t *currNode = object.curvePointsHead;
 		for (int i = 0; i < object.curveNumPoints; ++i) {
-			if (i < 10) {
-				xil_printf("-(%d,%d)", object.curvePoints[i].x, object.curvePoints[i].y);
-			}
+			CurvePoint *point = (CurvePoint *)currNode->data;
+			xil_printf("-(%d,%d)", point->x, point->y);
+			currNode = currNode->next;
 		}
 		xil_printf("\r\n");
 	} else if (object.type == 3) {
@@ -146,6 +149,8 @@ static void parse_objects()
 		test.time = atoi(strtok(NULL, ","));
 		temp_type = atoi(strtok(NULL, ","));
 		test.hitSound = atoi(strtok(NULL, ","));
+		test.curvePointsHead = NULL;
+		test.curvePointsTail = NULL;
 
 		//bit 2 - New Combo
 		if ((temp_type & 0b00000100) == 0b00000100) {
@@ -197,14 +202,13 @@ static void parse_section()
 	}
 }
 
-void parse_beatmaps(char *filename, FATFS FS_instance)
+HitObject *parse_beatmaps(char *filename, FATFS FS_instance)
 {
-	free(gameHitobjects);
 	gameHitobjects = (HitObject *)malloc(512 * sizeof(HitObject));
 
 	if (gameHitobjects == NULL) {
 		xil_printf("ERROR: could not malloc memory for HitObject Array %d\r\n", sizeof(HitObject));
-		return;
+		return NULL;
 	}
 
 	numberOfHitobjects = 0;
@@ -219,14 +223,14 @@ void parse_beatmaps(char *filename, FATFS FS_instance)
 	if (result != 0) {
 		xil_printf("Couldn't mount SD Card.\r\n");
 		free(gameHitobjects);
-		return;
+		return NULL;
 	}
 
 	result = f_open(&beatmapFile, filename, FA_READ);
 	if (result != 0) {
 		xil_printf("File not found");
 		free(gameHitobjects);
-		return;
+		return NULL;
 	}
 
 
@@ -239,4 +243,11 @@ void parse_beatmaps(char *filename, FATFS FS_instance)
 
 	f_close(&beatmapFile);
 	f_unmount("");
+
+	return gameHitobjects;
+}
+
+void free_hitobjects(HitObject *gameHitobjects)
+{
+	free(gameHitobjects);
 }

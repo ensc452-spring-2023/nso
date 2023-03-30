@@ -27,9 +27,9 @@
 /* Functions Prototypes											*/
 /*--------------------------------------------------------------*/
 void GameTick();
-void play_game();
+void play_game(HitObject *gameHitobjectsIn);
 void generateHitCircle(int x, int y, int index);
-void generateSlider(int x, int y, int index, int curveNumPoints, CurvePoint* curvePoints);
+void generateSlider(int x, int y, int index, int curveNumPoints, Node_t *curvePointsHead);
 void generateSpinner(int x, int y);
 void generateObject(HitObject *currentObjectPtr);
 void UpdateMouse(bool isLMBIn, bool isRMBIn, int dx, int dy);

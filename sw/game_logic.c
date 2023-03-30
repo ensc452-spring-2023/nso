@@ -21,9 +21,10 @@
 /* Global Variables												*/
 /*--------------------------------------------------------------*/
 extern long time;
-extern HitObject * gameHitobjects;
 extern int numberOfHitobjects;
 extern int score;
+
+static HitObject *gameHitobjects;
 int volume = 10;
 int beatoffset = 0;
 
@@ -76,7 +77,7 @@ static void AddHealth()
 
 static void DrainHealth()
 {
-	health -= 30;
+	health -= 0;
 	if (health < 0)
 		health = 0;
 }
@@ -240,7 +241,8 @@ void MoveSlider(HitObject* currentObjectPtr, int x1, int y1) {
 
 static void CheckSlider(HitObject *currentObjectPtr) {
 	int curveNumPoints = currentObjectPtr->curveNumPoints;
-	CurvePoint *curvePoints = currentObjectPtr->curvePoints;
+	Node_t *currNode = currentObjectPtr->curvePointsHead;
+	CurvePoint *point = (CurvePoint *)currNode->data;
 
 	int x0 = currentObjectPtr->x;
 	int y0 = currentObjectPtr->y;
@@ -254,22 +256,20 @@ static void CheckSlider(HitObject *currentObjectPtr) {
 		DeleteObject();
 	}
 
-	int x1 = curvePoints[0].x;
-	int y1 = curvePoints[0].y;
+	int x1 = point->x;
+	int y1 = point->y;
 
 	if (x0 == x1 && y0 == y1) {
 		curvePointIndex++;
 
-		if (curveNumPoints <= 1 || curvePointIndex >= 10) {
+		if (curveNumPoints <= 1) {
 			score += 300;
 			AddHealth();
 			xil_printf("Slider complete! +300\r\nScore: %d\r\n", score);
 			DeleteObject();
 		} else {
-			currentObjectPtr->curveNumPoints--;
-			for (int i = 0; i < curveNumPoints; i++) {
-				curvePoints[i] = curvePoints[i+1];
-			}
+			currentObjectPtr->curveNumPoints--;		// Change to not destructive
+			currentObjectPtr->curvePointsHead = ll_deleteNode(currNode);
 		}
 	}
 
@@ -431,8 +431,13 @@ static void game_init()
  / through a array of hit objects at the
  / correct time. Not final game.
  /-------------------------------------------*/
-void play_game()
+void play_game(HitObject *gameHitobjectsIn)
 {
+	if (gameHitobjectsIn == NULL)
+		return;
+
+	gameHitobjects = gameHitobjectsIn;
+
 	char input = ' ';
 	xil_printf("Ready? (y)\(n)\r\n");
 
@@ -473,7 +478,7 @@ void play_game()
 		xil_printf("Quitted!\r\n");
 		break;
 	default:
-		play_game();
+		play_game(gameHitobjects);
 		break;
 	}
 }
@@ -495,24 +500,26 @@ void generateHitCircle(int x, int y, int index){
  * -------------------------------------------/
  * Creates a slider on the screen.
  * ------------------------------------------*/
-void generateSlider(int x, int y, int index, int curveNumPoints, CurvePoint * curvePoints) {
-	//draw first line segment,
-	drawline(x, y, curvePoints[0].x, curvePoints[0].y, 0x0000FF);
+void generateSlider(int x, int y, int index, int curveNumPoints, Node_t *curvePointsHead) {
+	Node_t *currNode = curvePointsHead;
+	CurvePoint *point = (CurvePoint *)currNode->data;
+
+	//draw first line segment
+	drawline(x, y, point->x, point->y, 0x0000FF);
+
+	currNode = currNode->next;
 
 	//draw other line segments
 	for (int i = 0; i < curveNumPoints - 1; ++i) {
-		if (i < 8)
-		{
-			drawline(curvePoints[i].x, curvePoints[i].y,
-					curvePoints[i+1].x, curvePoints[i+1].y, 0x0000FF);
-		}
+		CurvePoint *prevPoint = point;
+		point = (CurvePoint *)currNode->data;
+
+		drawline(prevPoint->x, prevPoint->y, point->x, point->y, 0x0000FF);
+
+		currNode = currNode->next;
 	}
 
-	if (curveNumPoints < 10) {
-		DrawSliderEnd(curvePoints[curveNumPoints - 1].x, curvePoints[curveNumPoints - 1].y);
-	} else {
-		DrawSliderEnd(curvePoints[9].x, curvePoints[9].y);
-	}
+	DrawSliderEnd(point->x, point->y);
 
 	generateHitCircle(x, y, index);
 }
@@ -561,7 +568,7 @@ void generateObject(HitObject *currentObjectPtr) {
 			}
 
 			generateSlider(currentObjectPtr->x, currentObjectPtr->y, aCircleIndex,
-					currentObjectPtr->curveNumPoints, currentObjectPtr->curvePoints);
+					currentObjectPtr->curveNumPoints, currentObjectPtr->curvePointsHead);
 			break;
 		case 3:
 //			xil_printf("Drawing Object[Spinner]\r\n");

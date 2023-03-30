@@ -17,13 +17,13 @@ Node_t *ll_append(Node_t **tail, size_t dataSize)
 	Node_t *newNode = (Node_t *)malloc(sizeof(Node_t));
 	if (newNode == NULL) {
 		xil_printf("ERROR: could not malloc memory for linked list\r\n");
-		while(1) {}
+		return NULL;
 	}
 
 	newNode->data = malloc(dataSize);
 	if (newNode->data == NULL) {
 		xil_printf("ERROR: could not malloc memory for linked list data\r\n");
-		while (1) {}
+		return NULL;
 	}
 
 	newNode->prev = *tail;
@@ -36,7 +36,27 @@ Node_t *ll_append(Node_t **tail, size_t dataSize)
 	return newNode;
 }
 
-void ll_delete(Node_t *head)
+Node_t *ll_deleteNode(Node_t *currNode)
+{
+	if (currNode == NULL)
+		return NULL;
+
+	Node_t *prevNode = currNode->prev;
+	Node_t *nextNode = currNode->next;
+
+	if (prevNode != NULL)
+		prevNode->next = nextNode;
+
+	if (nextNode != NULL)
+		nextNode->prev = prevNode;
+
+	free(currNode->data);
+	free(currNode);
+
+	return nextNode;
+}
+
+void ll_deleteList(Node_t *head)
 {
 	Node_t *currNode = head;
 

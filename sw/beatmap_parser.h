@@ -16,6 +16,7 @@
 /* Include Files												*/
 /*--------------------------------------------------------------*/
 #include "ff.h"
+#include "linked_list.h"
 
 /*--------------------------------------------------------------*/
 /* Definitions													*/
@@ -85,7 +86,8 @@ typedef struct
 	char *hitSample;
 	int newCombo;
 	char curveType;
-	CurvePoint *curvePoints;
+	Node_t *curvePointsHead;
+	Node_t *curvePointsTail;
 	int curveNumPoints;
 	int slides;
 	int length;
@@ -98,9 +100,10 @@ typedef struct
  / parse_beatmaps()
  /--------------------------------------------/
  / Takes an input .osu file and parses the
- / game data into a global hit object
- / array. Will mount the sd card into 0:/
+ / game data into a hit object
+ / array. User must free the memory with free_hitobjects.
  /-------------------------------------------*/
-void parse_beatmaps(char *filename, FATFS FS_instance);
+HitObject *parse_beatmaps(char *filename, FATFS FS_instance);
+void free_hitobjects(HitObject *gameHitobjects);
 
 #endif
