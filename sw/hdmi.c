@@ -166,6 +166,7 @@ int InitVDMA(unsigned int DeviceId) {
 
 	int status;
 	XAxiVdma_Config *config = XAxiVdma_LookupConfig(DeviceId);
+	config->UseFsync = 1;
 	XAxiVdma_DmaSetup ReadCfg;
 	status = XAxiVdma_CfgInitialize(&VDMAInst, config, config->BaseAddress);
 	if (status != XST_SUCCESS) {
@@ -175,12 +176,13 @@ int InitVDMA(unsigned int DeviceId) {
 	ReadCfg.VertSizeInput = VPSS_SCREEN_HEIGHT;
 	ReadCfg.HoriSizeInput = VPSS_SCREEN_WIDTH * 4;
 	ReadCfg.Stride = VPSS_SCREEN_WIDTH * 4;
-	ReadCfg.FrameDelay = 0;
+	ReadCfg.FrameDelay = 1;
 	ReadCfg.EnableCircularBuf = 0;
-	ReadCfg.EnableSync = 0;
+	ReadCfg.EnableSync = 1;
 	ReadCfg.PointNum = 0;
 	ReadCfg.EnableFrameCounter = 0;
 	ReadCfg.FixedFrameStoreAddr = 0;
+	//ReadCfg.UseFsync = 1;
 	status = XAxiVdma_DmaConfig(&VDMAInst, XAXIVDMA_READ, &ReadCfg);
 	if (status != XST_SUCCESS) {
 		xil_printf("Write channel config failed %d\r\n", status);
