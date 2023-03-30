@@ -23,9 +23,9 @@
 #define VPSS_INTERLACED     0
 #define I2C_DEVICE_ID       XPAR_XIICPS_0_DEVICE_ID
 #define VDMA_DEVICE_ID      XPAR_AXI_VDMA_0_DEVICE_ID
-#define VDMA_BUFFER_0       0x02000000
-#define VDMA_BUFFER_1       0x02800000
-#define VDMA_BUFFER_2       0x03000000
+#define VDMA_BUFFER_0       0x03000000
+#define VDMA_BUFFER_1       0x03800000
+#define VDMA_BUFFER_2       0x04000000
 
 //min size of buffer = 1920*1080*3 = 5EEC00
 

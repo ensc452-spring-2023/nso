@@ -5,10 +5,12 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#define ALPHA_THRESHOLD 100
+
 // Note: Next buffer + 0x7E9004
-int *image_output_buffer = (int *)0x02000000;
-int *image_mouse_buffer = (int *)0x02FD2008;
-int *image_buffer_pointer = (int *)0x03800000;
+int *image_output_buffer = (int *)0x03000000;
+int *image_mouse_buffer = (int *)0x03FD2008;
+int *image_buffer_pointer = (int *)0x04800000;
 
 extern int *imageMenu;
 extern int *imageBg;
@@ -17,6 +19,7 @@ extern int *imageCircleOverlay;
 extern int *spinner;
 extern int *imageRanking;
 extern int *imageNum[10];
+extern int *approachCircle[NUM_A_CIRCLES];
 
 void SetPixel(int *pixelAddr, int colour) {
 	*pixelAddr = colour;
@@ -60,41 +63,102 @@ void FillScreen(int colour) {
 	memset(image_buffer_pointer, colour, NUM_BYTES_BUFFER);
 }
 
+void DrawRectangle(int x, int y, int width, int height, int colour) {
+	int *end = image_buffer_pointer + x + (y + height) * VGA_WIDTH;
+	for (int *temp_pointer = image_buffer_pointer + x + y * VGA_WIDTH; temp_pointer < end; temp_pointer += VGA_WIDTH) {
+		memset(temp_pointer, colour, width * PIXEL_BYTES);
+	}
+}
+
 // Draws a pixel on top of another considering transparency
 // Referenced https://gist.github.com/XProger/96253e93baccfbf338de
+//void PixelAlpha(int *under, int *over) {
+//	int alpha = (*over & 0xFF000000) >> 24;
+//
+//	if (alpha == 0)
+//		return;
+//
+//	if (alpha == 0xFF) {
+//		*under = *over;
+//		return;
+//	}
+//
+//	unsigned int rb = *under & 0x00FF00FF;
+//	unsigned int g = *under & 0x0000FF00;
+//
+//	rb += ((*over & 0x00FF00FF) - rb) * alpha >> 8;
+//	g += ((*over & 0x0000FF00) - g) * alpha >> 8;
+//
+//	*under = (rb & 0x00FF00FF) | (g & 0x0000FF00);
+//}
+
+// Performance (Ignores alpha and uses a threshold)
+// Tested 1st slider on Dandelions 14ms -> 10ms
 void PixelAlpha(int *under, int *over) {
 	int alpha = (*over & 0xFF000000) >> 24;
 
-	if (alpha == 0)
-		return;
-
-	if (alpha == 0xFF) {
+	if (alpha <= ALPHA_THRESHOLD)
+			return;
+	else {
 		*under = *over;
 		return;
 	}
-
-	unsigned int rb = *under & 0x00FF00FF;
-	unsigned int g = *under & 0x0000FF00;
-
-	rb += ((*over & 0x00FF00FF) - rb) * alpha >> 8;
-	g += ((*over & 0x0000FF00) - g) * alpha >> 8;
-
-	*under = (rb & 0x00FF00FF) | (g & 0x0000FF00);
 }
 
 // Draws a sprite on top of the output frame
+//void DrawSprite(int *sprite, int width, int height, int posX, int posY) {
+//	int *temp_pointer = (int *)image_buffer_pointer;
+//	int *sprite_pointer = (int *)sprite;
+//	temp_pointer += posX + posY * VGA_WIDTH;
+//
+//	for (int currX = posX; currX < posX + height; currX++) {
+//		for (int currY = posY; currY < posY + width; currY++) {
+//			PixelAlpha(temp_pointer, sprite_pointer);
+//
+//			temp_pointer++;
+//			sprite_pointer++;
+//		}
+//		temp_pointer += VGA_WIDTH - width;
+//	}
+//}
+
+// Performance - much faster for hitcircles
 void DrawSprite(int *sprite, int width, int height, int posX, int posY) {
 	int *temp_pointer = (int *)image_buffer_pointer;
 	int *sprite_pointer = (int *)sprite;
+	int copySize = 0;
+
 	temp_pointer += posX + posY * VGA_WIDTH;
 
 	for (int currX = posX; currX < posX + height; currX++) {
 		for (int currY = posY; currY < posY + width; currY++) {
-			PixelAlpha(temp_pointer, sprite_pointer);
+			int alpha = (*(sprite_pointer + copySize) & 0xFF000000) >> 24;
+
+			if (alpha > ALPHA_THRESHOLD) {
+				copySize++;
+				continue;
+			}
+
+			if (copySize > 0) {
+				memcpy(temp_pointer, sprite_pointer, copySize * PIXEL_BYTES);
+
+				temp_pointer += copySize;
+				sprite_pointer += copySize;
+				copySize = 0;
+			}
 
 			temp_pointer++;
 			sprite_pointer++;
 		}
+
+		if (copySize > 0) {
+			memcpy(temp_pointer, sprite_pointer, copySize * PIXEL_BYTES);
+
+			temp_pointer += copySize;
+			sprite_pointer += copySize;
+			copySize = 0;
+		}
+
 		temp_pointer += VGA_WIDTH - width;
 	}
 }
@@ -111,7 +175,13 @@ void DrawCircle(int x, int y) {
 	int spriteY = y - CIRCLE_HALF;
 
 	DrawSprite(imageCircle, CIRCLE_WIDTH, CIRCLE_WIDTH, spriteX, spriteY);
-	DrawSprite(imageCircleOverlay, CIRCLE_WIDTH, CIRCLE_WIDTH, spriteX, spriteY);
+}
+
+void DrawApproachCircle(int x, int y, int index) {
+	int spriteX = x - A_CIRCLE_HALF;
+	int spriteY = y - A_CIRCLE_HALF;
+
+	DrawSprite(approachCircle[index], A_CIRCLE_WIDTH, A_CIRCLE_WIDTH, spriteX, spriteY);
 }
 
 void DrawSpinner(int x, int y) {
@@ -152,8 +222,8 @@ void DrawStats(int score) {
 	memcpy(image_buffer_pointer, imageBg, NUM_BYTES_BUFFER);
 	DrawSprite(imageRanking, RANKING_WIDTH, RANKING_HEIGHT, 0, 200);
 	DrawInt(score, 7, 150, 210);
-	DrawInt(score, 3, 20, 635);
-	DrawInt(score, 3, 310, 635);
+	DrawInt(0, 3, 20, 635);
+	DrawInt(0, 3, 310, 635);
 	DisplayBuffer();
 }
 

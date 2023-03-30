@@ -9,12 +9,14 @@
  /	Helper functions for loading stuff from sd card
  /----------------------------------------------------------------------------*/
 
-#define DEBUG 0
+#define DEBUG 1
 
 /*--------------------------------------------------------------*/
 /* Include Files				 								*/
 /*--------------------------------------------------------------*/
 #include <stdlib.h>
+#include <stdio.h>
+#include "graphics.h"
 #include "ff.h"
 #include "xil_printf.h"
 
@@ -29,13 +31,11 @@ extern int *imageCircleOverlay;
 extern int *spinner;
 extern int *imageRanking;
 extern int *imageNum[10];
+extern int *approachCircle[NUM_A_CIRCLES];
 
-/* -------------------------------------------/
- * loadFileFromSD()
- * -------------------------------------------/
- * Loads a file from the sd card and puts it
- * on to the heap/
- * ------------------------------------------*/
+#if DEBUG == 1
+unsigned int totalBytes = 0;
+#endif
 
 void loadFileFromSD(char * filename, int ** address) {
 	FRESULT result;
@@ -58,6 +58,7 @@ void loadFileFromSD(char * filename, int ** address) {
 		#if DEBUG == 1
 				xil_printf("Loading %s \tSize:%dBYTES\r\n", fileInfo.fname,
 						fileInfo.fsize);
+				totalBytes += fileInfo.fsize;
 		#endif
 		fileSize = fileInfo.fsize;
 	} else if (result == FR_NO_FILE) {
@@ -93,21 +94,35 @@ void loadFileFromSD(char * filename, int ** address) {
 
 void loadSprites()
 {
-  	loadFileFromSD("Sprites\\hc.bin", &imageCircle);
-  	loadFileFromSD("Sprites\\hco.bin", &imageCircleOverlay);
-  	loadFileFromSD("Sprites\\spin.bin", &spinner);
-  	loadFileFromSD("Sprites\\num0.bin", &imageNum[0]);
-  	loadFileFromSD("Sprites\\num1.bin", &imageNum[1]);
-  	loadFileFromSD("Sprites\\num2.bin", &imageNum[2]);
-  	loadFileFromSD("Sprites\\num3.bin", &imageNum[3]);
-  	loadFileFromSD("Sprites\\num4.bin", &imageNum[4]);
-  	loadFileFromSD("Sprites\\num5.bin", &imageNum[5]);
-  	loadFileFromSD("Sprites\\num6.bin", &imageNum[6]);
-  	loadFileFromSD("Sprites\\num7.bin", &imageNum[7]);
-  	loadFileFromSD("Sprites\\num8.bin", &imageNum[8]);
-  	loadFileFromSD("Sprites\\num9.bin", &imageNum[9]);
-  	loadFileFromSD("Sprites\\rank.bin", &imageRanking);
-  	loadFileFromSD("Sprites\\menu.bin", &imageMenu);
-  	loadFileFromSD("Sprites\\bgG.bin", &imageBg);
-}
+#if DEBUG == 1
+	totalBytes = 0;
+#endif
 
+	loadFileFromSD("Sprites\\hc.bin", &imageCircle);
+	loadFileFromSD("Sprites\\hco.bin", &imageCircleOverlay);
+	loadFileFromSD("Sprites\\spin.bin", &spinner);
+	loadFileFromSD("Sprites\\num0.bin", &imageNum[0]);
+	loadFileFromSD("Sprites\\num1.bin", &imageNum[1]);
+	loadFileFromSD("Sprites\\num2.bin", &imageNum[2]);
+	loadFileFromSD("Sprites\\num3.bin", &imageNum[3]);
+	loadFileFromSD("Sprites\\num4.bin", &imageNum[4]);
+	loadFileFromSD("Sprites\\num5.bin", &imageNum[5]);
+	loadFileFromSD("Sprites\\num6.bin", &imageNum[6]);
+	loadFileFromSD("Sprites\\num7.bin", &imageNum[7]);
+	loadFileFromSD("Sprites\\num8.bin", &imageNum[8]);
+	loadFileFromSD("Sprites\\num9.bin", &imageNum[9]);
+	loadFileFromSD("Sprites\\rank.bin", &imageRanking);
+	loadFileFromSD("Sprites\\menu.bin", &imageMenu);
+	loadFileFromSD("Sprites\\bgG.bin", &imageBg);
+
+	for (int i = 0; i < NUM_A_CIRCLES; i++) {
+		char tempPath[32];
+		snprintf(tempPath, sizeof(tempPath), "Sprites\\ac\\ac%02d.bin", i);
+
+		loadFileFromSD(tempPath, &approachCircle[i]);
+	}
+
+#if DEBUG == 1
+	xil_printf("Total Size:%dBYTES\r\n", totalBytes);
+#endif
+}
