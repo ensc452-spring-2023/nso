@@ -4,13 +4,14 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include "hdmi.h"
 
 #define ALPHA_THRESHOLD 100
 
 // Note: Next buffer + 0x7E9004
-int *image_output_buffer = (int *)0x03000000;
+int *image_output_buffer = (int *)VDMA_BUFFER_0;
 int *image_mouse_buffer = (int *)0x03FD2008;
-int *image_buffer_pointer = (int *)0x04800000;
+int *image_buffer_pointer = (int *)VDMA_BUFFER_1;
 
 extern int *imageMenu;
 extern int *imageBg;

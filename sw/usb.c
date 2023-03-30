@@ -6,6 +6,7 @@
  */
 
 #include "usb.h"
+#include <stdlib.h>
 
 static void USB_qTDActivateSetup(XUsbPs_qTD *qTD, bool isIOC) {
 	XUsbPs_dTDInvalidateCache(qTD);
