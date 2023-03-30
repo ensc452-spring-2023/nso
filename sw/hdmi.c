@@ -36,7 +36,7 @@ extern XIicPs IicInst;
 extern XAxiVdma VDMAInst;
 
 int InitHdmi() {
-	IicConfig(I2C_DEVICE_ID);
+	IicConfig(HDMI_I2C_DEVICE_ID);
 	InitVPSS(VPSS_DEVICE_ID);
 	InitVDMA(VDMA_DEVICE_ID);
 
