@@ -16,6 +16,8 @@
 #include "xil_printf.h"
 #include "game_logic.h"
 #include "graphics.h"
+#include "audio.h"
+#include "sd.h"
 
 /*--------------------------------------------------------------*/
 /* Global Variables												*/
@@ -51,6 +53,8 @@ static u32 rotation = 0; // 4x u8 buffer for storing quadrant changes
 static int quadrant = 0;
 static int prevQuadrant = 0;
 static int spins = 0;
+
+char audioFileName[maxAudioFilenameSize];
 
 double sliderSpeed = .5;
 static double sliderFollowerX = 0.0;
@@ -461,8 +465,12 @@ void play_game(HitObject *gameHitobjectsIn)
 	switch (input)
 	{
 	case 'y':
-		RedrawGameplay();
 		game_init();
+
+		//xil_printf("%s\r\n", audioFileName);
+
+		AudioDMATransmitSong((u32 *) 0x0B000000, loadWAVEfileintoMemory(audioFileName, (u32 *) 0x0B000000));
+		RedrawGameplay();
 
 		while (objectsDeleted < numberOfHitobjects && isPlaying)
 		{

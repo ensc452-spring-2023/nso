@@ -32,6 +32,7 @@
 #include "graphics.h"
 #include "sd.h"
 #include "hdmi.h"
+#include "audio.h"
 
 // Parameter definitions
 #define INTC_DEVICE_ID 			XPAR_PS7_SCUGIC_0_DEVICE_ID
@@ -174,7 +175,7 @@ void BTN_Intr_Handler(void *InstancePtr) {
 
 int activeFrameBuffer = 0;
 int drawingFrameBuffer = 1;
-int * frameBuffers[3] = {0x02000000, 0x02800000, 0x03000000};
+int * frameBuffers[3] = {VDMA_BUFFER_0, VDMA_BUFFER_1, VDMA_BUFFER_0};
 
 static void TimerIntrHandler(void *CallBackRef) {
 	XTtcPs_GetInterruptStatus((XTtcPs * ) CallBackRef);
@@ -336,9 +337,12 @@ int main(void) {
 
 	loadSprites();
 	InitHdmi();
+	InitAudio();
 
 	screen = SCREEN_MENU;
 	DrawMenu();
+
+	//XAxiVdma_StartParking(&VDMAInst, 0, XAXIVDMA_READ);
 
 	while (1) {
 		main_menu();

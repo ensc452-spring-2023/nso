@@ -2,6 +2,8 @@
 #define __AUDIO_H_
 
 #include "xparameters.h"
+#include "stdlib.h"
+#include "xil_types.h"
 
 /* Redefine audio controller base address from xparameters.h */
 #define AUDIO_BASE				XPAR_ZED_AUDIO_CTRL_0_BASEADDR
@@ -11,6 +13,8 @@
 
 /* I2C Serial Clock frequency in Hertz */
 #define IIC_SCLK_RATE			400000
+
+#define AUDIO_I2C_DEVICE_ID		XPAR_XIICPS_0_DEVICE_ID
 
 /* ADAU internal registers */
 enum audio_regs {
@@ -83,5 +87,12 @@ void AudioPllConfig();
 void AudioWriteToReg(unsigned char u8RegAddr, unsigned char u8Data);
 void AudioConfigureJacks();
 void LineinLineoutConfig();
+void InitAudio();
+int AudioDMASetup();
+int AudioDMAIsBusy();
+void AudioDMAIReset();
+void AudioDMAFreeProcessedBDs();
+void AudioDMATransmit(u32*buffer, int buffer_len, int nRepeats);
+void AudioDMATransmitSong(u32*buffer, int buffer_len);
 
 #endif
