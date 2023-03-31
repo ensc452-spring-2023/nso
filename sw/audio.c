@@ -92,7 +92,7 @@ int AudioDMAIsBusy() {
 	}
 }
 
-void AudioDMAIReset() {
+void AudioDMAReset() {
 	XAxiDma_Reset(&AudioDMA);
 	for (int TimeOut = 2000000; TimeOut > 0; --TimeOut) {
 		if (XAxiDma_ResetIsDone(&AudioDMA)) {

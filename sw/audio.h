@@ -90,7 +90,7 @@ void LineinLineoutConfig();
 void InitAudio();
 int AudioDMASetup();
 int AudioDMAIsBusy();
-void AudioDMAIReset();
+void AudioDMAReset();
 void AudioDMAFreeProcessedBDs();
 void AudioDMATransmit(u32*buffer, int buffer_len, int nRepeats);
 void AudioDMATransmitSong(u32*buffer, int buffer_len);

@@ -499,6 +499,8 @@ void play_game(HitObject *gameHitobjectsIn)
 		//if (objectsDrawn != objectsDeleted)
 		//	xil_printf("ERROR: objectsDrawn:%d != objectsDeleted:%d\n", objectsDrawn, objectsDeleted);
 
+		AudioDMAReset();
+
 		break;
 	case 'n':
 		xil_printf("Quitted!\r\n");
