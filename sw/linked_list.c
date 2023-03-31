@@ -12,7 +12,7 @@
 #include "xil_printf.h"
 #include "linked_list.h"
 
-Node_t *ll_append(Node_t **tail, size_t dataSize)
+void ll_append(Node_t **tail, size_t dataSize)
 {
 	Node_t *newNode = (Node_t *)malloc(sizeof(Node_t));
 	if (newNode == NULL) {
@@ -33,7 +33,6 @@ Node_t *ll_append(Node_t **tail, size_t dataSize)
 		(*tail)->next = newNode;
 
 	*tail = newNode;
-	return newNode;
 }
 
 Node_t *ll_deleteNode(Node_t *currNode)

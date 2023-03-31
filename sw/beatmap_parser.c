@@ -73,31 +73,35 @@ static void parse_slider()
 	//xil_printf("\r\n");
 	//xil_printf("              >> %s\r\n", objectParamsBuffer);
 
-	char *pObjectParams, *point, *temp;
+	char *pObjectParams, *pointBuff, *temp;
 	pObjectParams = strdup(objectParamsBuffer);
 	temp = pObjectParams;
 
-	object.curveNumPoints = 0;
+	ll_append(&object.curvePointsTail, sizeof(CurvePoint));
+	object.curvePointsHead = object.curvePointsTail;
 
-	strsep(&temp, "|");
+	CurvePoint *point = (CurvePoint *)object.curvePointsTail->data;
+	point->x = object.x;
+	point->y = object.y;
 
-	while ((point = strsep(&temp, "|")) != NULL) {
+	object.curveNumPoints = 1;
+
+	strsep(&temp, "|"); // Remove curve type
+
+	while ((pointBuff = strsep(&temp, "|")) != NULL) {
 		int x = 0;
 		int y = 0;
-		sscanf(point, "%d:%d", &x, &y);
+		sscanf(pointBuff, "%d:%d", &x, &y);
 
 		//osupixel is equivalent to 640x480
-		Node_t *currNode = ll_append(&object.curvePointsTail, sizeof(CurvePoint));
-		if (currNode == NULL)
+		ll_append(&object.curvePointsTail, sizeof(CurvePoint));
+		if (object.curvePointsTail == NULL)
 			break;
 
-		CurvePoint *point = (CurvePoint *)currNode->data;
+		point = (CurvePoint *)object.curvePointsTail->data;
 
 		point->x = x * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_X;
 		point->y = y * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_Y;
-
-		if (object.curveNumPoints == 0)
-			object.curvePointsHead = object.curvePointsTail;
 
 		object.curveNumPoints++;
 	}
@@ -191,7 +195,7 @@ static void parse_objects()
 static void parse_section()
 {
 	if (buffer[0] == '[') {
-		xil_printf("Reading Section: %s", buffer);
+		xil_printf("Reading Section: %s\r\n", buffer);
 		if (buffer[1] == 'D') { // Difficulty
 			parse_difficulty();
 		} else if (buffer[1] == 'T') { // TimingPoints
@@ -205,6 +209,8 @@ static void parse_section()
 HitObject *parse_beatmaps(char *filename, FATFS FS_instance)
 {
 	gameHitobjects = (HitObject *)malloc(512 * sizeof(HitObject));
+
+
 
 	if (gameHitobjects == NULL) {
 		xil_printf("ERROR: could not malloc memory for HitObject Array %d\r\n", sizeof(HitObject));
