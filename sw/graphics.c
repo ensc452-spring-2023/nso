@@ -335,7 +335,7 @@ Node_t * removeRenderNodeByRenderNode(Node_t ** masterRenderHead, RenderNode * n
 	Node_t * current = *masterRenderHead;
 	while (TRUE) {
 		if(current->data == node){
-			return ll_deleteNode(current);
+			return ll_deleteNodeHead(masterRenderHead, current);
 		}
 		if (current->next == NULL) {
 			return NULL;
