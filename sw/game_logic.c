@@ -438,7 +438,7 @@ static void game_init()
 		drawnObjectIndices[i] = -1;
 	}
 
-	time = -2500;
+	time = 0;
 	score = 0;
 	health = 300;
 }
@@ -465,12 +465,15 @@ void play_game(HitObject *gameHitobjectsIn)
 	switch (input)
 	{
 	case 'y':
-		game_init();
 
-		//xil_printf("%s\r\n", audioFileName);
+		{
+			//xil_printf("%s\r\n", audioFileName);
+			int songLength = loadWAVEfileintoMemory(audioFileName, (u32 *) 0x0B000000);
+			game_init();
+			AudioDMATransmitSong((u32 *) 0x0B000000, songLength);
+			RedrawGameplay();
+		}
 
-		AudioDMATransmitSong((u32 *) 0x0B000000, loadWAVEfileintoMemory(audioFileName, (u32 *) 0x0B000000));
-		RedrawGameplay();
 
 		while (objectsDeleted < numberOfHitobjects && isPlaying)
 		{
