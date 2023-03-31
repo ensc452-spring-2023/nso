@@ -16,12 +16,14 @@
 #include <stdlib.h>
 #include "xil_printf.h"
 #include "beatmap_parser.h"
+#include "sd.h"
 
 /*--------------------------------------------------------------*/
 /* Global Variables												*/
 /*--------------------------------------------------------------*/
 extern int numberOfHitobjects;
 extern double sliderSpeed;
+extern char audioFileName[maxAudioFilenameSize];
 
 /*--------------------------------------------------------------*/
 /* Local Variables												*/
@@ -41,6 +43,20 @@ static void parse_difficulty()
 		if (strcmp(setting, "SliderMultiplier") == 0) {
 			float tempMultiplier = atof(strtok(NULL, "\n"));
 			sliderMultiplier = (int)(tempMultiplier * 100 * PLAY_AREA_SCALER);
+			break;
+		}
+	}
+}
+
+static void parse_general()
+{
+	while (f_gets(buffer, 4096, &beatmapFile) != NULL) {
+		char *setting = strtok(buffer, ":");
+
+		if (strcmp(setting, "AudioFilename") == 0) {
+			strcpy(audioFileName, strtok(NULL, "\n"));
+			//remove the space from the beginning
+			memmove(audioFileName, audioFileName + 1, maxAudioFilenameSize);
 			break;
 		}
 	}
@@ -192,7 +208,9 @@ static void parse_section()
 {
 	if (buffer[0] == '[') {
 		xil_printf("Reading Section: %s", buffer);
-		if (buffer[1] == 'D') { // Difficulty
+		if (buffer[1] == 'G') { // General
+			parse_general();
+		} else if (buffer[1] == 'D') { // Difficulty
 			parse_difficulty();
 		} else if (buffer[1] == 'T') { // TimingPoints
 			parse_timing();

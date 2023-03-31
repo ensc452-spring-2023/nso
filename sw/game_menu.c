@@ -24,6 +24,7 @@
 /* Definitions					 								*/
 /*--------------------------------------------------------------*/
 #define maxFiles 5
+#define maxFilenameSize 128
 
 /*--------------------------------------------------------------*/
 /* Global Variables				 								*/
@@ -94,7 +95,7 @@ void song_select_menu()
 	char input = ' ';
 	DIR dir;
 	FRESULT result;
-	static char files[maxFiles][32] =
+	static char files[maxFiles][maxFilenameSize] =
 	{ 0 };
 	int filesNum = 0;
 
@@ -141,10 +142,10 @@ void song_select_menu()
 
 	for (int i = 0; i < filesNum; ++i)
 	{
-		xil_printf("%s \t (%d)\n\r", files[i], i + 1);
+		xil_printf("(%d)\t%s\n\r", i + 1, files[i]);
 	}
 
-	xil_printf("Back  \t\t (b)\n\r");
+	xil_printf("(b)\tBack\n\r");
 	xil_printf("#################\n\r");
 
 	scanf(" %c", &input);
