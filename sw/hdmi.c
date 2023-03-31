@@ -13,19 +13,6 @@
 /* Definition   				 								*/
 /*--------------------------------------------------------------*/
 #define DEBUG 1
-#define VPSS_DEVICE_ID      XPAR_XV_CSC_0_DEVICE_ID
-#define VPSS_INPUT_COLOUR   XVIDC_CSF_RGB
-#define VPSS_OUTPUT_COLOUR  XVIDC_CSF_YCRCB_422
-#define VPSS_FRAME_RATE     XVIDC_FR_60HZ
-#define VPSS_SCREEN_HEIGHT  1080
-#define VPSS_SCREEN_WIDTH   1920
-#define VPSS_BYTES_PER_PIXEL 4
-#define VPSS_INTERLACED     0
-#define I2C_DEVICE_ID       XPAR_XIICPS_0_DEVICE_ID
-#define VDMA_DEVICE_ID      XPAR_AXI_VDMA_0_DEVICE_ID
-#define VDMA_BUFFER_0       0x03000000
-#define VDMA_BUFFER_1       0x03800000
-#define VDMA_BUFFER_2       0x04000000
 
 //min size of buffer = 1920*1080*3 = 5EEC00
 
@@ -49,7 +36,7 @@ extern XIicPs IicInst;
 extern XAxiVdma VDMAInst;
 
 int InitHdmi() {
-	IicConfig(I2C_DEVICE_ID);
+	IicConfig(HDMI_I2C_DEVICE_ID);
 	InitVPSS(VPSS_DEVICE_ID);
 	InitVDMA(VDMA_DEVICE_ID);
 
@@ -179,6 +166,7 @@ int InitVDMA(unsigned int DeviceId) {
 
 	int status;
 	XAxiVdma_Config *config = XAxiVdma_LookupConfig(DeviceId);
+	config->UseFsync = 1;
 	XAxiVdma_DmaSetup ReadCfg;
 	status = XAxiVdma_CfgInitialize(&VDMAInst, config, config->BaseAddress);
 	if (status != XST_SUCCESS) {
@@ -188,12 +176,13 @@ int InitVDMA(unsigned int DeviceId) {
 	ReadCfg.VertSizeInput = VPSS_SCREEN_HEIGHT;
 	ReadCfg.HoriSizeInput = VPSS_SCREEN_WIDTH * 4;
 	ReadCfg.Stride = VPSS_SCREEN_WIDTH * 4;
-	ReadCfg.FrameDelay = 0;
+	ReadCfg.FrameDelay = 1;
 	ReadCfg.EnableCircularBuf = 0;
-	ReadCfg.EnableSync = 0;
+	ReadCfg.EnableSync = 1;
 	ReadCfg.PointNum = 0;
 	ReadCfg.EnableFrameCounter = 0;
 	ReadCfg.FixedFrameStoreAddr = 0;
+	//ReadCfg.UseFsync = 1;
 	status = XAxiVdma_DmaConfig(&VDMAInst, XAXIVDMA_READ, &ReadCfg);
 	if (status != XST_SUCCESS) {
 		xil_printf("Write channel config failed %d\r\n", status);
@@ -220,7 +209,7 @@ int InitVDMA(unsigned int DeviceId) {
 		return XST_FAILURE;
 	}
 
-	memset((int*)VDMA_BUFFER_0, 0xF, VPSS_SCREEN_HEIGHT*VPSS_SCREEN_WIDTH*VPSS_BYTES_PER_PIXEL);
+	//memset((int*)VDMA_BUFFER_0, 0xF, VPSS_SCREEN_HEIGHT*VPSS_SCREEN_WIDTH*VPSS_BYTES_PER_PIXEL);
 	memset((int*)VDMA_BUFFER_1, 0xD18585, VPSS_SCREEN_HEIGHT*VPSS_SCREEN_WIDTH*VPSS_BYTES_PER_PIXEL);
 	memset((int*)VDMA_BUFFER_2, 0x1A7211, VPSS_SCREEN_HEIGHT*VPSS_SCREEN_WIDTH*VPSS_BYTES_PER_PIXEL);
 

@@ -11,6 +11,7 @@
 
 #include <stdlib.h>
 #include "usb.h"
+#include <stdlib.h>
 
 static u8 Buffer[MEMORY_SIZE] __attribute__((aligned(32)));
 

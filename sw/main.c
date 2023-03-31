@@ -93,6 +93,7 @@ static void BTN_Intr_Handler(void *baseaddr_p);
 static int InterruptSystemSetup(XScuGic *XScuGicInstancePtr);
 static int IntcInitFunction(u16 DeviceId, XGpio *GpioInstancePtr);
 static void TimerIntrHandler(void *CallBackRef);
+void VBlankIntrHandler(void *InstancePtr);
 
 static unsigned int score = 0;
 
@@ -169,6 +170,10 @@ void BTN_Intr_Handler(void *InstancePtr) {
 	// Enable GPIO interrupts
 	XGpio_InterruptEnable(&BTNInst, BTN_INT);
 }
+
+int activeFrameBuffer = 0;
+int drawingFrameBuffer = 1;
+int * frameBuffers[3] = {0x02000000, 0x02800000, 0x03000000};
 
 static void TimerIntrHandler(void *CallBackRef) {
 	XTtcPs_GetInterruptStatus((XTtcPs * ) CallBackRef);
@@ -283,7 +288,7 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 	XUsbPs_SetBits(&UsbInstance, XUSBPS_CMD_OFFSET, XUSBPS_CMD_ASE_MASK);
 }
 
-void VBlank_Intr_Handler(void *InstancePtr) {
+void VBlankIntrHandler(void *InstancePtr) {
 	//xil_printf("60fps?");
 }
 
@@ -305,6 +310,7 @@ int main(void) {
 	initTimer();
 
 	// Initialize interrupt controller
+
 	status = IntcInitFunction(INTC_DEVICE_ID, &BTNInst);
 	if (status != XST_SUCCESS)
 		return XST_FAILURE;
@@ -394,9 +400,10 @@ int IntcInitFunction(u16 DeviceId, XGpio *GpioInstancePtr) {
 	//enable interrupt on the timer
 	XTtcPs_EnableInterrupts(&Timer, XTTCPS_IXR_INTERVAL_MASK);
 
+	XScuGic_SetPriorityTriggerType(&INTCInst, VBLANK_INTR, 0xA0, 0x3);
+
 	//Connect the interrupt handler to the GIC.
-	status = XScuGic_Connect(&INTCInst, VBLANK_INTR,
-			(Xil_ExceptionHandler) VBlank_Intr_Handler, 0);
+	status = XScuGic_Connect(&INTCInst, VBLANK_INTR, (Xil_ExceptionHandler) VBlankIntrHandler, 0);
 	if (status != XST_SUCCESS) {
 		return status;
 	}
