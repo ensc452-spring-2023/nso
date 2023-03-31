@@ -27,5 +27,9 @@ void ll_append(Node_t **tail, size_t dataSize);
 Node_t *ll_deleteNode(Node_t *currNode);
 // Deletes the whole linked list
 void ll_deleteList(Node_t *head);
+//appends already created data to the end of the linked list
+Node_t * ll_append_object(Node_t ** head, void * data);
+//fixed deleteding the head node
+Node_t *ll_deleteNodeHead(Node_t ** head, Node_t *currNode);
 
 #endif

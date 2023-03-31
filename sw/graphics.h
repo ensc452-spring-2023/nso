@@ -13,6 +13,22 @@
 #define GRAPHICS_H
 
 #include <stdint.h>
+#include "xil_types.h"
+#include "linked_list.h"
+
+/*--------------------------------------------------------------*/
+/* Structs					 								*/
+/*--------------------------------------------------------------*/
+
+typedef struct RenderNode{
+	u32 * 	address;
+	u32 	size;			//in bytes
+	u8		drawnBuffer0;
+	u8		drawnBuffer1;
+	u8		delete;			//request to delete
+	u32		id;
+} RenderNode;
+
 /*--------------------------------------------------------------*/
 /* Definitions					 								*/
 /*--------------------------------------------------------------*/
@@ -69,5 +85,11 @@ void plotLine(int x0, int y0, int x1, int y1, int colour);
 void drawline(int x0, int y0, int x1, int y1, int colour);
 
 void DrawMouse(int x, int y);
+
+RenderNode * createRenderNode(u32 * address, u32 size, u32 id);
+Node_t * addRenderNode(Node_t ** masterRenderHead, RenderNode * renderNode);
+Node_t * removeRenderNodeByNode(Node_t * node);
+Node_t * removeRenderNodeByRenderNode(Node_t ** masterRenderHead, RenderNode * node);
+Node_t * removeRenderNodeByID(Node_t ** masterRenderHead, u32 id);
 
 #endif
