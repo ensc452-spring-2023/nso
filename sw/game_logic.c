@@ -55,6 +55,7 @@ static int prevQuadrant = 0;
 static int spins = 0;
 
 char audioFileName[maxAudioFilenameSize];
+static int songLength;
 
 double sliderSpeed = .5;
 static double sliderFollowerX = 0.0;
@@ -373,6 +374,9 @@ void GameTick()
 	if (!isPlaying)
 		return;
 
+	if (time == 0)
+		AudioDMATransmitSong((u32 *)0x0B000000, songLength);
+
 	if ((time >= gameHitobjects[objectsDrawn].time - 16 * NUM_A_CIRCLES) && objectsDrawn < numberOfHitobjects) {
 		AddObject();
 	}
@@ -438,7 +442,7 @@ static void game_init()
 		drawnObjectIndices[i] = -1;
 	}
 
-	time = 0;
+	time = -1000;
 	score = 0;
 	health = 300;
 }
@@ -458,6 +462,7 @@ void play_game(HitObject *gameHitobjectsIn)
 	gameHitobjects = gameHitobjectsIn;
 
 	char input = ' ';
+	songLength = loadWAVEfileintoMemory(audioFileName, (u32 *)0x0B000000);
 	xil_printf("Ready? (y)\(n)\r\n");
 
 	scanf(" %c", &input);
@@ -468,9 +473,7 @@ void play_game(HitObject *gameHitobjectsIn)
 
 		{
 			//xil_printf("%s\r\n", audioFileName);
-			int songLength = loadWAVEfileintoMemory(audioFileName, (u32 *) 0x0B000000);
 			game_init();
-			AudioDMATransmitSong((u32 *) 0x0B000000, songLength);
 			RedrawGameplay();
 		}
 
