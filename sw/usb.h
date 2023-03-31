@@ -1,46 +1,142 @@
-/* Created by Bowie Gian
- * Referenced XUsbPs v2.6 Library
- *
- * I added the functions to use USB host mode.
- * The data structures are defined here.
- */
-
-//typedef struct {
-//
-//} Usb_qTD;
+/*-----------------------------------------------------------------------------/
+ /	!nso - Appended XUsbPs Host Mode										   /
+ /-----------------------------------------------------------------------------/
+ /	Bowie Gian
+ /	04/03/2023
+ /	usb.h
+ /
+ /	Referenced XUsbPs v2.6 Library
+ /	I added the missing functions to use USB host mode with the XUsbPs library.
+ /----------------------------------------------------------------------------*/
 
 #ifndef USB_H
 #define USB_H
 
-#include "xusbps_endpoint.h"
+/*--------------------------------------------------------------*/
+/* Include Files												*/
+/*--------------------------------------------------------------*/
 #include "xusbps.h"
+#include "xusbps_endpoint.h"
 #include "xscugic.h"
-
 #include <stdbool.h>
 
+/*--------------------------------------------------------------*/
+/* Definitions													*/
+/*--------------------------------------------------------------*/
 #define XUSBPS_REQ_GET_DESCRIPTOR	0x06
 #define XUSBPS_REQ_SET_CONFIGURATION	0x09
-
-// Polling rate in ms (1, 2, 4, 8)
-#define POLLING_MS 8
+#define POLLING_MS 8 // Polling rate in ms (1, 2, 4, 8)
 
 #define MEMORY_SIZE (64 * 1024)
-#ifdef __ICCARM__
-#pragma data_alignment = 32
-u8 Buffer[MEMORY_SIZE];
-#else
-u8 Buffer[MEMORY_SIZE] __attribute__ ((aligned (32)));
-#endif
 
-bool USB_SetupDevice(XUsbPs *UsbInstancePtr, int status);
-XUsbPs_qTD *USB_SetupPolling(XUsbPs *UsbInstancePtr);
+typedef u8	XUsbPs_pQH[XUSBPS_dQH_ALIGN];
+typedef u8	XUsbPs_qTD[XUSBPS_dTD_ALIGN];
+
+/*--------------------------------------------------------------*/
+/* Structs														*/
+/*--------------------------------------------------------------*/
+/**
+ * The following data structure represents a queue head.
+ * This is based off the endpoints in XUsbPs.h
+ */
+typedef struct {
+	XUsbPs_pQH *pQH;
+	/**< Pointer to the Queue Head structure. */
+
+	XUsbPs_qTD *qTDs;
+	/**< List of pointers to the Transfer Descriptors of the
+	 * endpoint. */
+
+	XUsbPs_qTD *qTDHead;
+	/**< Buffer to the next available descriptor in the list. */
+
+	XUsbPs_qTD *qTDTail;
+	/**< Buffer to the last unsent descriptor in the list*/
+
+	u8 *qTDBufs;
+	/**< Pointer to the first buffer of the buffer list for this
+	 * endpoint. */
+
+	XUsbPs_EpHandlerFunc	HandlerFunc;
+	XUsbPs_EpIsoHandlerFunc HandlerIsoFunc;
+	/**< Handler function for this endpoint. */
+	void *HandlerRef;
+	/**< User data reference for the handler. */
+	u32	RequestedBytes;	/**< RequestedBytes for transfer */
+	u32	BytesTxed;		/**< Actual Bytes transferred */
+	u8 *BufferPtr;		/**< Buffer location */
+	u32	Interval;		/**< Data transfer service interval */
+
+	XUsbPs_pQH *QHHLP;
+	/**< Pointer to the Queue Head Horizontal Link. */
+
+	u32	Type;
+	/**< Transaction Descriptor Type. Set to 01 (QH type) ~~Unused??~~ */
+
+	u16	MaxPacketSize;
+	/**< Maximum packet size for this Queue Head. This number will
+	 * define the maximum number of bytes sent on the wire per
+	 * transaction. Range: 0..1024 */
+
+	u32 EpSpeed;
+	/**<  Speed of the associated endpoint. (Pg. 471) */
+
+	u32 EpNum;
+	/**<  Endpoint number on the device. (Pg. 471) */
+
+	u32 DeviceAddr;
+	/**<  Address of device serving as the data source or sink. */
+
+	u32	NumBufs;
+	/**< Number of buffers to be handled by this Queue Head. */
+	u32	BufSize;
+	/**< Buffer size. */
+
+
+} XUsbPs_QH;
+
+/**
+ * The XUsbPs_HostConfig structure contains the configuration information to
+ * configure the USB controller for HOST mode. This data structure is used
+ * with the XUsbPs_ConfigureHost() function call.
+ */
+typedef struct {
+	u8  NumQHs;	/**< Number of Queue Heads for the controller. */
+
+	u32 DMAMemPhys;		/**< Physical base address of DMAable memory
+				  allocated for the driver. */
+
+				  /* The following members are used internally by the L0/L1 driver.  They
+				   * MUST NOT be accesses and/or modified in any way by the upper layers.
+				   *
+				   * The reason for having these members is that we generally try to
+				   * avoid allocating memory in the L0/L1 driver as we want to be OS
+				   * independent. In order to avoid allocating memory for this data
+				   * structure wihin L0/L1 we put it into the XUsbPs_DeviceConfig
+				   * structure which is allocated by the caller.
+				   */
+	XUsbPs_QH	QueueHead[XUSBPS_MAX_ENDPOINTS];
+	/**< List of queue head metadata structures. TEMP USING EP LENGTH*/
+
+	u32 PhysAligned;	/**< 64 byte aligned base address of the DMA
+				   memory block. Will be computed and set by
+				   the L0/L1 driver. */
+} XUsbPs_HostConfig;
+
+typedef struct {
+	XUsbPs usbInstance;
+	XUsbPs_HostConfig HostConfig;
+} UsbWithHost;
+
+bool USB_SetupDevice(UsbWithHost *usbWithHostInstancePtr, int status);
+XUsbPs_qTD *USB_SetupPolling(UsbWithHost *usbWithHostInstancePtr);
 XUsbPs_qTD* USB_qTDActivateIn(XUsbPs_QH *QueueHead, bool isIOC, bool dataNum);
 
 // from xusbps_intr_example.c
 // https://github.com/Xilinx/embeddedsw/tree/master/XilinxProcessorIPLib/drivers/usbps/examples
 int UsbSetupIntrSystem(XScuGic *IntcInstancePtr, XUsbPs *UsbInstancePtr, u16 UsbIntrId);
 void UsbDisableIntrSystem(XScuGic *IntcInstancePtr, u16 UsbIntrId);
-int USB_Setup(XScuGic *IntcInstancePtr, XUsbPs *UsbInstancePtr, u16 UsbDeviceId, u16 UsbIntrId, void *UsbIntrHandler);
+int USB_Setup(XScuGic *IntcInstancePtr, UsbWithHost *usbWithHostInstancePtr, u16 UsbDeviceId, u16 UsbIntrId, void *UsbIntrHandler);
 void USB_CleanUp(XScuGic *IntcInstancePtr, XUsbPs *UsbInstancePtr, u16 UsbIntrId);
 
 /**

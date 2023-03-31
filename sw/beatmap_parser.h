@@ -21,7 +21,7 @@
 /*--------------------------------------------------------------*/
 /* Definitions													*/
 /*--------------------------------------------------------------*/
-#define bufferSize 32
+#define BM_STR_SIZE 32
 #define PLAY_AREA_SCALER 2
 #define PLAY_AREA_OFFSET_X 448
 #define PLAY_AREA_OFFSET_Y 156
@@ -40,17 +40,17 @@ typedef struct
 
 typedef struct
 {
-	char audioFilename[bufferSize];
+	char audioFilename[BM_STR_SIZE];
 	int audioLeadIn;
 	int previewTime;
 	int countdown;
-	char sampleSet[bufferSize];
+	char sampleSet[BM_STR_SIZE];
 	float stackLeniency;
 	int mode;
 	int LetterboxInBreaks;
 	int useSkinSprites;
-	char overlayPosition[bufferSize];
-	char skinPreference[bufferSize];
+	char overlayPosition[BM_STR_SIZE];
+	char skinPreference[BM_STR_SIZE];
 	int epilepsyWarning;
 	int countdownOffset;
 	int specialStyle;

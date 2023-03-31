@@ -50,7 +50,8 @@ XTtcPs Timer; //timer
 XVprocSs VPSSInst;
 XIicPs IicInst;
 XAxiVdma VDMAInst;
-static XUsbPs UsbInstance; /* The instance of the USB Controller */
+static UsbWithHost usbWithHostInstance;
+static XUsbPs *UsbInstancePtr; /* The instance of the USB Controller */
 
 static int btn_value;
 HitObject * gameHitobjects;
@@ -195,7 +196,7 @@ XUsbPs_qTD *qTDPollReceiver = 0;
 static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 	if (Mask & XUSBPS_IXR_UI_MASK) {
 		if (isSetupComplete) {
-			XUsbPs_dQHInvalidateCache(UsbInstance.HostConfig.QueueHead[1].pQH);
+			XUsbPs_dQHInvalidateCache(usbWithHostInstance.HostConfig.QueueHead[1].pQH);
 
 			XUsbPs_dTDInvalidateCache(qTDPollReceiver); // Invalidate before CPU read ??output buff??~~~~~~~~~~~~~~
 			u8 *buffInput = (u8 *) XUsbPs_ReaddTD(qTDPollReceiver,
@@ -216,14 +217,14 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 			//xil_printf("LMB = %d, RMB = %d, X = %4d, Y = %4d\r\n", isLMB, isRMB, *changeX, *changeY);
 
 			qTDPollReceiver = USB_qTDActivateIn(
-					&UsbInstance.HostConfig.QueueHead[1], false, 0);
+					&usbWithHostInstance.HostConfig.QueueHead[1], false, 0);
 			return;
 		}
 
-		isSetupComplete = USB_SetupDevice(&UsbInstance, status);
+		isSetupComplete = USB_SetupDevice(UsbInstancePtr, status);
 
 		if (isSetupComplete) {
-			qTDPollReceiver = USB_SetupPolling(&UsbInstance);
+			qTDPollReceiver = USB_SetupPolling(UsbInstancePtr);
 		}
 
 		if (status == 10) {
@@ -235,7 +236,7 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 		return;
 	}
 
-	if ((XUsbPs_ReadReg(UsbInstance.Config.BaseAddress, XUSBPS_PORTSCR1_OFFSET)
+	if ((XUsbPs_ReadReg(UsbInstancePtr->Config.BaseAddress, XUSBPS_PORTSCR1_OFFSET)
 			& XUSBPS_PORTSCR_CCS_MASK) == 0) {
 		xil_printf("Device Disconnected!\r\n\n");
 		isSetupComplete = false;
@@ -243,25 +244,25 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 		status = 0;
 
 		// Disable Periodic Schedule
-		XUsbPs_ClrBits(&UsbInstance, XUSBPS_CMD_OFFSET, XUSBPS_CMD_PSE_MASK);
+		XUsbPs_ClrBits(UsbInstancePtr, XUSBPS_CMD_OFFSET, XUSBPS_CMD_PSE_MASK);
 
 		// Disable Async
-		XUsbPs_ClrBits(&UsbInstance, XUSBPS_CMD_OFFSET, XUSBPS_CMD_ASE_MASK);
+		XUsbPs_ClrBits(UsbInstancePtr, XUSBPS_CMD_OFFSET, XUSBPS_CMD_ASE_MASK);
 
 		return;
 	}
 	xil_printf("Device Connected! ");
 
-	if ((XUsbPs_ReadReg(UsbInstance.Config.BaseAddress, XUSBPS_PORTSCR1_OFFSET)
+	if ((XUsbPs_ReadReg(UsbInstancePtr->Config.BaseAddress, XUSBPS_PORTSCR1_OFFSET)
 			& XUSBPS_PORTSCR_PE_MASK) == 0) {
 		xil_printf("Resetting...\r\n\n");
-		XUsbPs_SetBits(&UsbInstance, XUSBPS_PORTSCR1_OFFSET,
+		XUsbPs_SetBits(UsbInstancePtr, XUSBPS_PORTSCR1_OFFSET,
 				XUSBPS_PORTSCR_PR_MASK);
 		return;
 	}
 
 	u32 deviceSpeed =
-			(XUsbPs_ReadReg(UsbInstance.Config.BaseAddress,
+			(XUsbPs_ReadReg(UsbInstancePtr->Config.BaseAddress,
 					XUSBPS_PORTSCR1_OFFSET)
 					& XUSBPS_PORTSCR_PSPD_MASK) >> 26;
 
@@ -283,10 +284,10 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 //	USB_WriteSetupBuffer(buffSetup, 0, XUSBPS_REQ_SET_ADDRESS, 0xC, 0, 0); // Set Address 0x0C
 //	USB_WriteSetupBuffer(buffSetup, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0200, 0, 0x54); // Get Config
 
-	isSetupComplete = USB_SetupDevice(&UsbInstance, status);
+	isSetupComplete = USB_SetupDevice(UsbInstancePtr, status);
 
 	// Enable Async
-	XUsbPs_SetBits(&UsbInstance, XUSBPS_CMD_OFFSET, XUSBPS_CMD_ASE_MASK);
+	XUsbPs_SetBits(UsbInstancePtr, XUSBPS_CMD_OFFSET, XUSBPS_CMD_ASE_MASK);
 }
 
 void VBlankIntrHandler(void *InstancePtr) {
@@ -319,9 +320,10 @@ int main(void) {
 	XTtcPs_Start(&Timer);
 
 	int usbStatus;
+	UsbInstancePtr = &usbWithHostInstance.usbInstance;
 
 	// Run the USB setup
-	usbStatus = USB_Setup(&INTCInst, &UsbInstance,
+	usbStatus = USB_Setup(&INTCInst, &usbWithHostInstance,
 	XPAR_XUSBPS_0_DEVICE_ID, XPAR_XUSBPS_0_INTR, &UsbIntrHandler);
 
 	// Set Output Buffer as Non-Cacheable

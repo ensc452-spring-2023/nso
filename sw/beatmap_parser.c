@@ -18,6 +18,8 @@
 #include "beatmap_parser.h"
 #include "sd.h"
 
+#define PARSER_BUFF_SIZE 4096
+
 /*--------------------------------------------------------------*/
 /* Global Variables												*/
 /*--------------------------------------------------------------*/
@@ -29,16 +31,16 @@ extern char audioFileName[maxAudioFilenameSize];
 /* Local Variables												*/
 /*--------------------------------------------------------------*/
 static HitObject *gameHitobjects;
-static HitObject test;
+static HitObject object;
 static FIL beatmapFile;
-static char buffer[4096];
+static char buffer[PARSER_BUFF_SIZE];
 
 static int sliderMultiplier = 0;
 static int beatLength = 0;
 
 static void parse_difficulty()
 {
-	while (f_gets(buffer, 4096, &beatmapFile) != NULL) {
+	while (f_gets(buffer, PARSER_BUFF_SIZE, &beatmapFile) != NULL) {
 		char *setting = strtok(buffer, ":");
 		if (strcmp(setting, "SliderMultiplier") == 0) {
 			float tempMultiplier = atof(strtok(NULL, "\n"));
@@ -64,7 +66,7 @@ static void parse_general()
 
 static void parse_timing()
 {
-	f_gets(buffer, 4096, &beatmapFile);
+	f_gets(buffer, PARSER_BUFF_SIZE, &beatmapFile);
 	strtok(buffer, ",");
 	beatLength = atoi(strtok(NULL, ","));
 
@@ -73,55 +75,57 @@ static void parse_timing()
 
 static void parse_slider()
 {
-	char objectParamsBuffer[4096];
+	char objectParamsBuffer[PARSER_BUFF_SIZE];
 
-	test.type = 1;
+	object.type = 1;
 
 	strcpy(objectParamsBuffer, strtok(NULL, ","));
-	test.curveType = objectParamsBuffer[0];
-	test.slides = atoi(strtok(NULL, ","));
-	test.length = atoi(strtok(NULL, ","));
-	//test.edgeSounds = strtok(NULL, ",");
-	//test.edgeSets = strtok(NULL, ",");
+	object.curveType = objectParamsBuffer[0];
+	object.slides = atoi(strtok(NULL, ","));
+	object.length = atoi(strtok(NULL, ","));
+	//object.edgeSounds = strtok(NULL, ",");
+	//object.edgeSets = strtok(NULL, ",");
 
 	//xil_printf("\r\n");
 	//xil_printf("              >> %s\r\n", objectParamsBuffer);
 
-	char *pObjectParams, *p, *temp;
+	char *pObjectParams, *pointBuff, *temp;
 	pObjectParams = strdup(objectParamsBuffer);
 	temp = pObjectParams;
 
-	test.curveNumPoints = -1;
+	ll_append(&object.curvePointsTail, sizeof(CurvePoint));
+	object.curvePointsHead = object.curvePointsTail;
 
-	while ((p = strsep(&pObjectParams, "|")) != NULL) {
-		//printf("<<%s>>\r\n", p);
+	CurvePoint *point = (CurvePoint *)object.curvePointsTail->data;
+	point->x = object.x;
+	point->y = object.y;
 
-		if (test.curveNumPoints >= 0) {
-			int x = 0;
-			int y = 0;
-			sscanf(p, "%d:%d", &x, &y);
+	object.curveNumPoints = 1;
 
-			//osupixel is equivalent to 640x480
-			Node_t *currNode = ll_append(&test.curvePointsTail, sizeof(CurvePoint));
-			if (currNode == NULL)
-				break;
+	strsep(&temp, "|"); // Remove curve type
 
-			CurvePoint *point = (CurvePoint *)currNode->data;
+	while ((pointBuff = strsep(&temp, "|")) != NULL) {
+		int x = 0;
+		int y = 0;
+		sscanf(pointBuff, "%d:%d", &x, &y);
 
-			point->x = x * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_X;
-			point->y = y * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_Y;
-		}
+		//osupixel is equivalent to 640x480
+		ll_append(&object.curvePointsTail, sizeof(CurvePoint));
+		if (object.curvePointsTail == NULL)
+			break;
 
-		if (test.curveNumPoints == 0)
-			test.curvePointsHead = test.curvePointsTail;
+		point = (CurvePoint *)object.curvePointsTail->data;
 
-		test.curveNumPoints++;
+		point->x = x * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_X;
+		point->y = y * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_Y;
+
+		object.curveNumPoints++;
 	}
 
-	free(temp);
+	free(pObjectParams);
 
 	int sv = 1; // slider velocity multiplier given by the effective inherited timing point (assumed 1 until we parse them)
-	test.endTime = test.length * beatLength / (sliderMultiplier * sv) + test.time;
+	object.endTime = object.length * beatLength / (sliderMultiplier * sv) + object.time;
 
 	//xil_printf("\r\n");
 }
@@ -155,29 +159,29 @@ static void print_object(HitObject object)
 
 static void parse_objects()
 {
-	while (f_gets(buffer, 4096, &beatmapFile) != NULL) {
+	while (f_gets(buffer, PARSER_BUFF_SIZE, &beatmapFile) != NULL) {
 
 		u8 temp_type = 0xFF;
 
 		//osupixel is equivalent to 640x480
-		test.x = atoi(strtok(buffer, ",")) * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_X;
-		test.y = atoi(strtok(NULL, ",")) * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_Y;
-		test.time = atoi(strtok(NULL, ","));
+		object.x = atoi(strtok(buffer, ",")) * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_X;
+		object.y = atoi(strtok(NULL, ",")) * PLAY_AREA_SCALER + PLAY_AREA_OFFSET_Y;
+		object.time = atoi(strtok(NULL, ","));
 		temp_type = atoi(strtok(NULL, ","));
-		test.hitSound = atoi(strtok(NULL, ","));
-		test.curvePointsHead = NULL;
-		test.curvePointsTail = NULL;
+		object.hitSound = atoi(strtok(NULL, ","));
+		object.curvePointsHead = NULL;
+		object.curvePointsTail = NULL;
 
 		//bit 2 - New Combo
 		if ((temp_type & 0b00000100) == 0b00000100) {
-			test.newCombo = 1;
+			object.newCombo = 1;
 		} else {
-			test.newCombo = 0;
+			object.newCombo = 0;
 		}
 
 		//bit 0 - Hit Circle
 		if ((temp_type & 0b00000001) == 0b00000001) {
-			test.type = 0;
+			object.type = 0;
 		}
 		//bit 1 - Slider
 		if ((temp_type & 0b00000010) == 0b00000010) {
@@ -186,12 +190,12 @@ static void parse_objects()
 
 		//bit 3 - Spinner
 		if ((temp_type & 0b00001000) == 0b00001000) {
-			test.type = 3;
-			test.endTime = atoi(strtok(NULL, ","));
+			object.type = 3;
+			object.endTime = atoi(strtok(NULL, ","));
 		}
 		//bit 7 - osu!mania hold
 		if ((temp_type & 0b10000000) == 0b10000000) {
-			test.type = 7;
+			object.type = 7;
 			xil_printf("ERROR: WHY ARE YOU HERE?\r\n");
 		}
 
@@ -199,15 +203,15 @@ static void parse_objects()
 			xil_printf("Skip %d combos\r\n", (temp_type & 0b01110000) >> 3);
 		}
 
-		memcpy(&gameHitobjects[numberOfHitobjects++], &test, sizeof(HitObject));
-		print_object(test);
+		memcpy(&gameHitobjects[numberOfHitobjects++], &object, sizeof(HitObject));
+		print_object(object);
 	}
 }
 
 static void parse_section()
 {
 	if (buffer[0] == '[') {
-		xil_printf("Reading Section: %s", buffer);
+		xil_printf("Reading Section: %s\r\n", buffer);
 		if (buffer[1] == 'G') { // General
 			parse_general();
 		} else if (buffer[1] == 'D') { // Difficulty
@@ -223,6 +227,8 @@ static void parse_section()
 HitObject *parse_beatmaps(char *filename, FATFS FS_instance)
 {
 	gameHitobjects = (HitObject *)malloc(512 * sizeof(HitObject));
+
+
 
 	if (gameHitobjects == NULL) {
 		xil_printf("ERROR: could not malloc memory for HitObject Array %d\r\n", sizeof(HitObject));
@@ -268,4 +274,6 @@ HitObject *parse_beatmaps(char *filename, FATFS FS_instance)
 void free_hitobjects(HitObject *gameHitobjects)
 {
 	free(gameHitobjects);
+
+
 }

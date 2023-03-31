@@ -38,7 +38,6 @@ static int mouseX = 0;
 static int mouseY = 0;
 
 static bool isPlaying = false;
-static int curvePointIndex = 0;
 static bool isSliding = false;
 static bool isSpinning = false;
 
@@ -58,6 +57,10 @@ static int spins = 0;
 char audioFileName[maxAudioFilenameSize];
 
 double sliderSpeed = .5;
+static double sliderFollowerX = 0.0;
+static double sliderFollowerY = 0.0;
+static Node_t *nextCurvePoint = NULL;
+static int slides = 0;
 
 bool isScreenChanged = false;
 int objectsDrawn = 0;
@@ -154,13 +157,14 @@ static void RedrawGameplay() {
 		generateObject(&gameHitobjects[drawnObjectIndices[displayIndex]]);
 	}
 
+	if (isSliding) {
+		DrawSliderEnd((int)sliderFollowerX, (int)sliderFollowerY);
+	}
+
 	DrawRectangle(0, 20, health, 20, 0xFFFFFFFF);
 	DrawInt(score, 7, 1590, 0);
 	DisplayBufferAndMouse(mouseX, mouseY);
 }
-
-double sliderFollowerX = 0.0;
-double sliderFollowerY = 0.0;
 
 static void CheckCollision(HitObject *currentObjectPtr) {
 	if (isLMBPress) {
@@ -185,9 +189,10 @@ static void CheckCollision(HitObject *currentObjectPtr) {
 				DeleteObject();
 			} else if (currentObjectPtr->type == OBJ_TYPE_SLIDER) {
 				xil_printf("Starting slider, hold it...\r\n");
-				curvePointIndex = 0;
 				sliderFollowerX = currentObjectPtr->x;
 				sliderFollowerY = currentObjectPtr->y;
+				nextCurvePoint = currentObjectPtr->curvePointsHead->next;
+				slides = 0;
 				isSliding = true;
 			}
 		} else {
@@ -206,7 +211,7 @@ static void CheckCollision(HitObject *currentObjectPtr) {
 	}
 }
 
-// Moves the slider start towards point
+// Moves the slider follower towards point
 void MoveSlider(HitObject* currentObjectPtr, int x1, int y1) {
 	double dx = x1 - sliderFollowerX;
 	double dy = y1 - sliderFollowerY;
@@ -238,18 +243,13 @@ void MoveSlider(HitObject* currentObjectPtr, int x1, int y1) {
 			sliderFollowerY = sliderFollowerY - dy * sliderSpeed / dx;
 		}
 	}
-
-	currentObjectPtr->x = (int)sliderFollowerX;
-	currentObjectPtr->y = (int)sliderFollowerY;
 }
 
 static void CheckSlider(HitObject *currentObjectPtr) {
-	int curveNumPoints = currentObjectPtr->curveNumPoints;
-	Node_t *currNode = currentObjectPtr->curvePointsHead;
-	CurvePoint *point = (CurvePoint *)currNode->data;
+	CurvePoint *point = (CurvePoint *)nextCurvePoint->data;
 
-	int x0 = currentObjectPtr->x;
-	int y0 = currentObjectPtr->y;
+	int x0 = (int)sliderFollowerX;
+	int y0 = (int)sliderFollowerY;
 
 	int dx = mouseX - x0;
 	int dy = mouseY - y0;
@@ -264,16 +264,31 @@ static void CheckSlider(HitObject *currentObjectPtr) {
 	int y1 = point->y;
 
 	if (x0 == x1 && y0 == y1) {
-		curvePointIndex++;
+		Node_t *currCurvePoint = nextCurvePoint;
 
-		if (curveNumPoints <= 1) {
-			score += 300;
-			AddHealth();
-			xil_printf("Slider complete! +300\r\nScore: %d\r\n", score);
-			DeleteObject();
-		} else {
-			currentObjectPtr->curveNumPoints--;		// Change to not destructive
-			currentObjectPtr->curvePointsHead = ll_deleteNode(currNode);
+		if ((slides % 2) == 0)
+			nextCurvePoint = nextCurvePoint->next;
+		else
+			nextCurvePoint = nextCurvePoint->prev;
+
+		if (nextCurvePoint == NULL) {
+			slides++;
+
+			if (slides >= currentObjectPtr->slides) {
+				score += 300;
+				AddHealth();
+				xil_printf("Slider complete! +300\r\nScore: %d\r\n", score);
+				DeleteObject();
+			} else {
+				if ((slides % 2) == 0)
+					nextCurvePoint = currCurvePoint->next;
+				else
+					nextCurvePoint = currCurvePoint->prev;
+
+				point = (CurvePoint *)nextCurvePoint->data;
+				x1 = point->x;
+				y1 = point->y;
+			}
 		}
 	}
 
@@ -511,9 +526,6 @@ void generateHitCircle(int x, int y, int index){
 void generateSlider(int x, int y, int index, int curveNumPoints, Node_t *curvePointsHead) {
 	Node_t *currNode = curvePointsHead;
 	CurvePoint *point = (CurvePoint *)currNode->data;
-
-	//draw first line segment
-	drawline(x, y, point->x, point->y, 0x0000FF);
 
 	currNode = currNode->next;
 

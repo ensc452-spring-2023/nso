@@ -1,13 +1,23 @@
-/* Created by Bowie Gian
- * Referenced XUsbPs v2.6 Library
- *
- * I added the functions to use USB host mode.
- * The data structures are defined here.
- */
+/*-----------------------------------------------------------------------------/
+ /	!nso - Appended XUsbPs Host Mode										   /
+ /-----------------------------------------------------------------------------/
+ /	Bowie Gian
+ /	04/03/2023
+ /	usb.c
+ /
+ /	Referenced XUsbPs v2.6 Library
+ /	I added the missing functions to use USB host mode with the XUsbPs library.
+ /----------------------------------------------------------------------------*/
 
+#include <stdlib.h>
 #include "usb.h"
 #include <stdlib.h>
 
+static u8 Buffer[MEMORY_SIZE] __attribute__((aligned(32)));
+
+/*--------------------------------------------------------------*/
+/* My Functions													*/
+/*--------------------------------------------------------------*/
 static void USB_qTDActivateSetup(XUsbPs_qTD *qTD, bool isIOC) {
 	XUsbPs_dTDInvalidateCache(qTD);
 
@@ -96,9 +106,11 @@ static void USB_PrintUTF16(char *message, int length) {
 	xil_printf("%s", output);
 }
 
-XUsbPs_qTD *USB_SetupPolling(XUsbPs *UsbInstancePtr) {
+XUsbPs_qTD *USB_SetupPolling(UsbWithHost *usbWithHostInstancePtr) {
+	XUsbPs *UsbInstancePtr = &usbWithHostInstancePtr->usbInstance;
+
 	// Setup Polling
-	XUsbPs_QH *pollQH = &UsbInstancePtr->HostConfig.QueueHead[1];
+	XUsbPs_QH *pollQH = &usbWithHostInstancePtr->HostConfig.QueueHead[1];
 	XUsbPs_dQHInvalidateCache(pollQH->pQH);
 
 	// Set EP 1
@@ -137,9 +149,9 @@ static int strNumSerial = 0;
 static int length = 0;
 static XUsbPs_qTD *qTDReceiver = 0;
 
-bool USB_SetupDevice(XUsbPs *UsbInstancePtr, int status) {
+bool USB_SetupDevice(UsbWithHost *usbWithHostInstancePtr, int status) {
 	bool isSetup = false;
-	XUsbPs_QH *setupQH = &UsbInstancePtr->HostConfig.QueueHead[0];
+	XUsbPs_QH *setupQH = &usbWithHostInstancePtr->HostConfig.QueueHead[0];
 	u8 *buffInput = 0;
 
 	XUsbPs_dQHInvalidateCache(setupQH->pQH);
@@ -217,6 +229,10 @@ bool USB_SetupDevice(XUsbPs *UsbInstancePtr, int status) {
 	XUsbPs_dQHFlushCache(setupQH->pQH);
 	return isSetup;
 }
+
+/*--------------------------------------------------------------*/
+/* Modified Functions from XUsbPs Library						*/
+/*--------------------------------------------------------------*/
 
 /*****************************************************************************/
 /**
@@ -617,34 +633,36 @@ static int XUsbPs_qTDInit(XUsbPs_HostConfig *HostCfgPtr)
  * 		HOST side.
  *
  ******************************************************************************/
-int XUsbPs_ConfigureHost(XUsbPs *InstancePtr,
+int XUsbPs_ConfigureHost(UsbWithHost *usbWithHostInstancePtr,
 			    const XUsbPs_HostConfig *CfgPtr)
 {
+	XUsbPs *InstancePtr = &usbWithHostInstancePtr->usbInstance;
+
 	int	Status;
 
 	Xil_AssertNonvoid(InstancePtr != NULL);
 	Xil_AssertNonvoid(CfgPtr      != NULL);
 
 	/* Copy the configuration data over into the local instance structure */
-	InstancePtr->HostConfig = *CfgPtr;
+	usbWithHostInstancePtr->HostConfig = *CfgPtr;
 
 
 	/* Align the buffer to a 2048 byte (XUSBPS_dQH_BASE_ALIGN) boundary.*/
-	InstancePtr->HostConfig.PhysAligned =
+	usbWithHostInstancePtr->HostConfig.PhysAligned =
 		(InstancePtr->DeviceConfig.DMAMemPhys +
 					 XUSBPS_dQH_BASE_ALIGN) &
 						~(XUSBPS_dQH_BASE_ALIGN -1);
 
 	/* Initialize the endpoint pointer list data structure. */
-	XUsbPs_QHListInit(&InstancePtr->HostConfig);
+	XUsbPs_QHListInit(&usbWithHostInstancePtr->HostConfig);
 
 
 	/* Initialize the Queue Head structures in DMA memory. */
-	XUsbPs_QHInit(&InstancePtr->HostConfig);
+	XUsbPs_QHInit(&usbWithHostInstancePtr->HostConfig);
 
 
 	/* Initialize the Transfer Descriptors in DMA memory.*/
-	Status = XUsbPs_qTDInit(&InstancePtr->HostConfig);
+	Status = XUsbPs_qTDInit(&usbWithHostInstancePtr->HostConfig);
 	if (XST_SUCCESS != Status) {
 		return XST_FAILURE;
 	}
@@ -657,7 +675,7 @@ int XUsbPs_ConfigureHost(XUsbPs *InstancePtr,
 	/* Set the Queue Head List address. */
 	XUsbPs_WriteReg(InstancePtr->Config.BaseAddress,
 				XUSBPS_ASYNCLISTADDR_OFFSET,
-				InstancePtr->HostConfig.PhysAligned);
+		usbWithHostInstancePtr->HostConfig.PhysAligned);
 
 	/* Set the USB mode register to configure HOST mode. */
 	XUsbPs_WriteReg(InstancePtr->Config.BaseAddress,
@@ -760,9 +778,11 @@ void UsbDisableIntrSystem(XScuGic *IntcInstancePtr, u16 UsbIntrId)
 }
 
 // based on UsbIntrExample() function
-int USB_Setup(XScuGic *IntcInstancePtr, XUsbPs *UsbInstancePtr,
+int USB_Setup(XScuGic *IntcInstancePtr, UsbWithHost *usbWithHostInstancePtr,
 					u16 UsbDeviceId, u16 UsbIntrId, void *UsbIntrHandler)
 {
+	XUsbPs *UsbInstancePtr = &usbWithHostInstancePtr->usbInstance;
+
 	int	Status;
 	u8	*MemPtr = NULL;
 	int	ReturnStatus = XST_FAILURE;
@@ -818,7 +838,7 @@ int USB_Setup(XScuGic *IntcInstancePtr, XUsbPs *UsbInstancePtr,
 
 	HostConfig.DMAMemPhys = (u32) MemPtr;
 
-	Status = XUsbPs_ConfigureHost(UsbInstancePtr, &HostConfig);
+	Status = XUsbPs_ConfigureHost(usbWithHostInstancePtr, &HostConfig);
 	if (XST_SUCCESS != Status) {
 		return ReturnStatus;
 	}

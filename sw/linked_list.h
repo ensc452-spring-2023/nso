@@ -21,8 +21,8 @@ typedef struct Node {
 } Node_t;
 
 // Adds an empty new node to the end of the list, moving the tail pointer
-// Returns the created node
-Node_t *ll_append(Node_t **tail, size_t dataSize);
+// to the new node
+void ll_append(Node_t **tail, size_t dataSize);
 // Deletes current node from the list and returns next node
 Node_t *ll_deleteNode(Node_t *currNode);
 // Deletes the whole linked list
