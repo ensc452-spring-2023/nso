@@ -1,12 +1,22 @@
-/* Created by Bowie Gian
- * Referenced XUsbPs v2.6 Library
- *
- * I added the functions to use USB host mode.
- * The data structures are defined here.
- */
+/*-----------------------------------------------------------------------------/
+ /	!nso - Appended XUsbPs Host Mode										   /
+ /-----------------------------------------------------------------------------/
+ /	Bowie Gian
+ /	04/03/2023
+ /	usb.c
+ /
+ /	Referenced XUsbPs v2.6 Library
+ /	I added the missing functions to use USB host mode with the XUsbPs library.
+ /----------------------------------------------------------------------------*/
 
+#include <stdlib.h>
 #include "usb.h"
 
+static u8 Buffer[MEMORY_SIZE] __attribute__((aligned(32)));
+
+/*--------------------------------------------------------------*/
+/* My Functions													*/
+/*--------------------------------------------------------------*/
 static void USB_qTDActivateSetup(XUsbPs_qTD *qTD, bool isIOC) {
 	XUsbPs_dTDInvalidateCache(qTD);
 
@@ -216,6 +226,10 @@ bool USB_SetupDevice(XUsbPs *UsbInstancePtr, int status) {
 	XUsbPs_dQHFlushCache(setupQH->pQH);
 	return isSetup;
 }
+
+/*--------------------------------------------------------------*/
+/* Modified Functions from XUsbPs Library						*/
+/*--------------------------------------------------------------*/
 
 /*****************************************************************************/
 /**

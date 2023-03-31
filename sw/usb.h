@@ -1,36 +1,33 @@
-/* Created by Bowie Gian
- * Referenced XUsbPs v2.6 Library
- *
- * I added the functions to use USB host mode.
- * The data structures are defined here.
- */
-
-//typedef struct {
-//
-//} Usb_qTD;
+/*-----------------------------------------------------------------------------/
+ /	!nso - Appended XUsbPs Host Mode										   /
+ /-----------------------------------------------------------------------------/
+ /	Bowie Gian
+ /	04/03/2023
+ /	usb.h
+ /
+ /	Referenced XUsbPs v2.6 Library
+ /	I added the missing functions to use USB host mode with the XUsbPs library.
+ /----------------------------------------------------------------------------*/
 
 #ifndef USB_H
 #define USB_H
 
+/*--------------------------------------------------------------*/
+/* Include Files												*/
+/*--------------------------------------------------------------*/
 #include "xusbps_endpoint.h"
 #include "xusbps.h"
 #include "xscugic.h"
-
 #include <stdbool.h>
 
+/*--------------------------------------------------------------*/
+/* Definitions													*/
+/*--------------------------------------------------------------*/
 #define XUSBPS_REQ_GET_DESCRIPTOR	0x06
 #define XUSBPS_REQ_SET_CONFIGURATION	0x09
-
-// Polling rate in ms (1, 2, 4, 8)
-#define POLLING_MS 8
+#define POLLING_MS 8 // Polling rate in ms (1, 2, 4, 8)
 
 #define MEMORY_SIZE (64 * 1024)
-#ifdef __ICCARM__
-#pragma data_alignment = 32
-u8 Buffer[MEMORY_SIZE];
-#else
-u8 Buffer[MEMORY_SIZE] __attribute__ ((aligned (32)));
-#endif
 
 bool USB_SetupDevice(XUsbPs *UsbInstancePtr, int status);
 XUsbPs_qTD *USB_SetupPolling(XUsbPs *UsbInstancePtr);
