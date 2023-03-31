@@ -138,8 +138,6 @@ XUsbPs_qTD *USB_SetupPolling(UsbWithHost *usbWithHostInstancePtr) {
 	Xil_DCacheFlushRange((unsigned int)frameListPtr, sizeof(u32) * 8);
 	// Set Frame List Address
 	XUsbPs_WriteReg(UsbInstancePtr->Config.BaseAddress, XUSBPS_LISTBASE_OFFSET, (u32)frameListPtr);
-	// Enable Periodic Schedule
-	XUsbPs_SetBits(UsbInstancePtr, XUSBPS_CMD_OFFSET, XUSBPS_CMD_PSE_MASK);
 	return qTDReceiver;
 }
 
@@ -156,7 +154,7 @@ bool USB_SetupDevice(UsbWithHost *usbWithHostInstancePtr, int status) {
 
 	XUsbPs_dQHInvalidateCache(setupQH->pQH);
 
-	if (status != 0) {
+	if (status > 0 && status < 10) {
 		XUsbPs_dTDInvalidateCache(qTDReceiver); // Invalidate before CPU read ??output buff??~~~~~~~~~~~~~~~~~~~~
 		buffInput = (u8 *)XUsbPs_ReaddTD(qTDReceiver, XUSBPS_qTDANLP) - 1;
 	}

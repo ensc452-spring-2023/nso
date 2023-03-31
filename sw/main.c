@@ -224,7 +224,8 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 		isSetupComplete = USB_SetupDevice(UsbInstancePtr, status);
 
 		if (isSetupComplete) {
-			qTDPollReceiver = USB_SetupPolling(UsbInstancePtr);
+			// Enable Periodic Schedule
+			XUsbPs_SetBits(UsbInstancePtr, XUSBPS_CMD_OFFSET, XUSBPS_CMD_PSE_MASK);
 		}
 
 		if (status == 10) {
@@ -256,6 +257,7 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 	if ((XUsbPs_ReadReg(UsbInstancePtr->Config.BaseAddress, XUSBPS_PORTSCR1_OFFSET)
 			& XUSBPS_PORTSCR_PE_MASK) == 0) {
 		xil_printf("Resetting...\r\n\n");
+		status = 0;
 		XUsbPs_SetBits(UsbInstancePtr, XUSBPS_PORTSCR1_OFFSET,
 				XUSBPS_PORTSCR_PR_MASK);
 		return;
@@ -325,6 +327,7 @@ int main(void) {
 	// Run the USB setup
 	usbStatus = USB_Setup(&INTCInst, &usbWithHostInstance,
 	XPAR_XUSBPS_0_DEVICE_ID, XPAR_XUSBPS_0_INTR, &UsbIntrHandler);
+	qTDPollReceiver = USB_SetupPolling(UsbInstancePtr);
 
 	// Set Output Buffer as Non-Cacheable
 	for (int i = 0; i <= 896; i++) {
