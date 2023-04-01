@@ -19,6 +19,8 @@
 #include "audio.h"
 #include "sd.h"
 
+#define AC_MS 10 // Approach Circle Update ms
+
 /*--------------------------------------------------------------*/
 /* Global Variables												*/
 /*--------------------------------------------------------------*/
@@ -57,6 +59,7 @@ static int spins = 0;
 char audioFileName[maxAudioFilenameSize];
 static int songLength;
 
+int ar = 0;
 double sliderSpeed = .5;
 static double sliderFollowerX = 0.0;
 static double sliderFollowerY = 0.0;
@@ -85,7 +88,7 @@ static void AddHealth()
 
 static void DrainHealth()
 {
-	health -= 0;
+	health -= 0; // Change back to 30 after testing~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	if (health < 0)
 		health = 0;
 }
@@ -377,7 +380,7 @@ void GameTick()
 	if (time == 0)
 		AudioDMATransmitSong((u32 *)0x0B000000, songLength);
 
-	if ((time >= gameHitobjects[objectsDrawn].time - 16 * NUM_A_CIRCLES) && objectsDrawn < numberOfHitobjects) {
+	if ((time >= gameHitobjects[objectsDrawn].time - AC_MS * NUM_A_CIRCLES) && objectsDrawn < numberOfHitobjects) {
 		AddObject();
 	}
 
@@ -470,13 +473,8 @@ void play_game(HitObject *gameHitobjectsIn)
 	switch (input)
 	{
 	case 'y':
-
-		{
-			//xil_printf("%s\r\n", audioFileName);
-			game_init();
-			RedrawGameplay();
-		}
-
+		game_init();
+		RedrawGameplay();
 
 		while (objectsDeleted < numberOfHitobjects && isPlaying)
 		{
@@ -569,11 +567,11 @@ void generateObject(HitObject *currentObjectPtr) {
 			dt = currentObjectPtr->time - time;
 			if (dt <= 0) {
 				aCircleIndex = 0;
-			} else if (dt >= 16 * NUM_A_CIRCLES) {
+			} else if (dt >= AC_MS * NUM_A_CIRCLES) {
 				aCircleIndex = NUM_A_CIRCLES - 1;
 			} else {
-				// close approach circle about faster than 1/60 s
-				aCircleIndex = dt / 16;
+				// close approach circle every AC_MS
+				aCircleIndex = dt / AC_MS;
 			}
 
 			generateHitCircle(currentObjectPtr->x, currentObjectPtr->y, aCircleIndex);
@@ -585,12 +583,12 @@ void generateObject(HitObject *currentObjectPtr) {
 			if (dt <= 0) {
 				aCircleIndex = 0;
 			}
-			else if (dt >= 16 * NUM_A_CIRCLES) {
+			else if (dt >= AC_MS * NUM_A_CIRCLES) {
 				aCircleIndex = NUM_A_CIRCLES - 1;
 			}
 			else {
-				// close approach circle about faster than 1/60 s
-				aCircleIndex = dt / 16;
+				// close approach circle every AC_MS
+				aCircleIndex = dt / AC_MS;
 			}
 
 			generateSlider(currentObjectPtr->x, currentObjectPtr->y, aCircleIndex,

@@ -84,7 +84,7 @@ typedef struct
 	int hitSound;
 	char *objectParams;
 	char *hitSample;
-	int newCombo;
+	int comboLabel;
 	char curveType;
 	Node_t *curvePointsHead;
 	Node_t *curvePointsTail;
