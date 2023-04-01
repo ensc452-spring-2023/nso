@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include "hdmi.h"
+#include "linked_list.h"
 
 #define ALPHA_THRESHOLD 100
 
@@ -12,6 +13,8 @@
 int *image_output_buffer = (int *)VDMA_BUFFER_0;
 int *image_mouse_buffer = (int *)0x03FD2008;
 int *image_buffer_pointer = (int *)VDMA_BUFFER_1;
+
+Node_t * masterRenderList;
 
 extern int *imageMenu;
 extern int *imageBg;
@@ -295,5 +298,67 @@ void drawline(int x0, int y0, int x1, int y1, int colour)
 			y = y0 + dy * (x-x0)/dx;
 			SetPixel(image_buffer_pointer+((VGA_WIDTH*y)+(x)), colour);
 		}
+	}
+}
+
+RenderNode * createRenderNode(u32 * address, u32 size, u32 id)
+{
+	RenderNode *newNode = (RenderNode *)malloc(sizeof(RenderNode));
+	newNode->address = address;
+	newNode->size = size;
+	newNode->delete = FALSE;
+	newNode->drawnBuffer0 = FALSE;
+	newNode->drawnBuffer1 = FALSE;
+	newNode->id = id;
+	return newNode;
+}
+
+Node_t * addRenderNode(Node_t ** masterRenderHead, RenderNode * renderNode)
+{
+	return ll_append_object(masterRenderHead, renderNode);
+
+}
+
+Node_t * removeRenderNodeByNode(Node_t * node)
+{
+	return ll_deleteNode(node);
+
+}
+
+Node_t * removeRenderNodeByRenderNode(Node_t ** masterRenderHead, RenderNode * node)
+{
+	if(*masterRenderHead == NULL){
+		return NULL;
+	}
+
+	// other insertions
+	Node_t * current = *masterRenderHead;
+	while (TRUE) {
+		if(current->data == node){
+			return ll_deleteNodeHead(masterRenderHead, current);
+		}
+		if (current->next == NULL) {
+			return NULL;
+		}
+		current = current->next;
+	}
+}
+
+Node_t * removeRenderNodeByID(Node_t ** masterRenderHead, u32 id)
+{
+	if(*masterRenderHead == NULL){
+		return NULL;
+	}
+
+	// other insertions
+	Node_t * current = *masterRenderHead;
+	while (TRUE) {
+		if(((RenderNode *)(current->data))->id == id){
+			return ll_deleteNodeHead(masterRenderHead, current);
+		}
+		if (current->next == NULL) {
+			return NULL;
+		}
+		current = current->next;
 	}
 }
