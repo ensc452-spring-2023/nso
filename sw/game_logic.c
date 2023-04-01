@@ -445,7 +445,7 @@ static void game_init()
 		drawnObjectIndices[i] = -1;
 	}
 
-	time = -1000;
+	time = -1200;
 	score = 0;
 	health = 300;
 }
@@ -517,11 +517,20 @@ void play_game(HitObject *gameHitobjectsIn)
  * -------------------------------------------/
  * Creates a hit circle on the screen.
  * ------------------------------------------*/
-void generateHitCircle(int x, int y, int index){
+void generateHitCircle(int x, int y, int acIndex, int comboIndex)
+{
 	DrawCircle(x, y);
 
-	if (index != 0)
-		DrawApproachCircle(x, y, index);
+	if (acIndex != 0)
+		DrawApproachCircle(x, y, acIndex);
+
+	if (comboIndex < 1)
+		return;
+	else if (comboIndex < 10) {
+		DrawInt(comboIndex, 1, x - DIGIT_WIDTH / 2, y - DIGIT_HEIGHT / 2);
+	} else if (comboIndex < 100) {
+		DrawInt(comboIndex, 2, x - DIGIT_WIDTH, y - DIGIT_HEIGHT / 2);
+	}
 }
 
 /* -------------------------------------------/
@@ -529,7 +538,9 @@ void generateHitCircle(int x, int y, int index){
  * -------------------------------------------/
  * Creates a slider on the screen.
  * ------------------------------------------*/
-void generateSlider(int x, int y, int index, int curveNumPoints, Node_t *curvePointsHead) {
+void generateSlider(int x, int y, int acIndex, int comboIndex,
+		int curveNumPoints, Node_t *curvePointsHead)
+{
 	Node_t *currNode = curvePointsHead;
 	CurvePoint *point = (CurvePoint *)currNode->data;
 
@@ -547,7 +558,7 @@ void generateSlider(int x, int y, int index, int curveNumPoints, Node_t *curvePo
 
 	DrawSliderEnd(point->x, point->y);
 
-	generateHitCircle(x, y, index);
+	generateHitCircle(x, y, acIndex, comboIndex);
 }
 
 /* -------------------------------------------/
@@ -576,7 +587,8 @@ void generateObject(HitObject *currentObjectPtr) {
 				aCircleIndex = dt / AC_MS;
 			}
 
-			generateHitCircle(currentObjectPtr->x, currentObjectPtr->y, aCircleIndex);
+			generateHitCircle(currentObjectPtr->x, currentObjectPtr->y,
+					aCircleIndex, currentObjectPtr->comboLabel);
 
 			break;
 		case 1:
@@ -593,7 +605,8 @@ void generateObject(HitObject *currentObjectPtr) {
 				aCircleIndex = dt / AC_MS;
 			}
 
-			generateSlider(currentObjectPtr->x, currentObjectPtr->y, aCircleIndex,
+			generateSlider(currentObjectPtr->x, currentObjectPtr->y,
+					aCircleIndex, currentObjectPtr->comboLabel,
 					currentObjectPtr->curveNumPoints, currentObjectPtr->curvePointsHead);
 			break;
 		case 3:
