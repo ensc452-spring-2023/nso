@@ -233,7 +233,7 @@ static void parse_section()
 
 HitObject *parse_beatmaps(char *filename, FATFS FS_instance)
 {
-	gameHitobjects = (HitObject *)malloc(512 * sizeof(HitObject));
+	gameHitobjects = (HitObject *)malloc(1024 * sizeof(HitObject));
 
 
 
