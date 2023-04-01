@@ -20,7 +20,7 @@ extern int *imageMenu;
 extern int *imageBg;
 extern int *imageCircle;
 extern int *imageCircleOverlay;
-extern int *spinner;
+extern int *spinner[2];
 extern int *imageRanking;
 extern int *imageNum[10];
 extern int *approachCircle[NUM_A_CIRCLES];
@@ -188,11 +188,14 @@ void DrawApproachCircle(int x, int y, int index) {
 	DrawSprite(approachCircle[index], A_CIRCLE_WIDTH, A_CIRCLE_WIDTH, spriteX, spriteY);
 }
 
-void DrawSpinner(int x, int y) {
+void DrawSpinner(int x, int y, int index) {
 	int spriteX = x - SPINNER_HALF;
 	int spriteY = y - SPINNER_HALF;
 
-	DrawSprite(spinner, SPINNER_WIDTH, SPINNER_WIDTH, spriteX, spriteY);
+	if (index == 0)
+		DrawSprite(spinner[0], SPINNER_WIDTH, SPINNER_WIDTH, spriteX, spriteY);
+	else
+		DrawSprite(spinner[1], SPINNER_WIDTH, SPINNER_WIDTH, spriteX, spriteY);
 }
 
 void DrawInt(unsigned int num, int length, int posX, int posY) {

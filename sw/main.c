@@ -81,7 +81,7 @@ int *imageMenu;
 int *imageBg;
 int *imageCircle;
 int *imageCircleOverlay;
-int *spinner;
+int *spinner[2];
 int *imageRanking;
 int *imageNum[10];
 int *approachCircle[NUM_A_CIRCLES];

@@ -29,7 +29,7 @@ extern int *imageMenu;
 extern int *imageBg;
 extern int *imageCircle;
 extern int *imageCircleOverlay;
-extern int *spinner;
+extern int *spinner[2];
 extern int *imageRanking;
 extern int *imageNum[10];
 extern int *approachCircle[NUM_A_CIRCLES];
@@ -99,7 +99,8 @@ void loadSprites() {
 
 	loadFileFromSD("Sprites\\hc.bin", &imageCircle);
 	loadFileFromSD("Sprites\\hco.bin", &imageCircleOverlay);
-	loadFileFromSD("Sprites\\spin.bin", &spinner);
+	loadFileFromSD("Sprites\\spin0.bin", &spinner[0]);
+	loadFileFromSD("Sprites\\spin1.bin", &spinner[1]);
 	loadFileFromSD("Sprites\\num0.bin", &imageNum[0]);
 	loadFileFromSD("Sprites\\num1.bin", &imageNum[1]);
 	loadFileFromSD("Sprites\\num2.bin", &imageNum[2]);

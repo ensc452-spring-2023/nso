@@ -19,6 +19,7 @@
 #include "audio.h"
 #include "sd.h"
 
+#define FPS 0
 #define AC_MS 10 // Approach Circle Update ms
 
 /*--------------------------------------------------------------*/
@@ -66,13 +67,14 @@ static double sliderFollowerY = 0.0;
 static Node_t *nextCurvePoint = NULL;
 static int slides = 0;
 
-bool isScreenChanged = false;
-int objectsDrawn = 0;
-int objectsDeleted = 0;
+static bool isScreenChanged = false;
+static int objectsDrawn = 0;
+static int objectsDeleted = 0;
+static int spinnerIndex = 0;
 // Change to linked list? ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-int drawnObjectHead = 0;
-int drawnObjectTail = 0;
-int drawnObjectIndices[DRAWN_OBJECTS_MAX] =
+static int drawnObjectHead = 0;
+static int drawnObjectTail = 0;
+static int drawnObjectIndices[DRAWN_OBJECTS_MAX] =
 	{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
 
@@ -326,6 +328,13 @@ static void CheckSpin() {
 	if (prevQuadrant == 0)
 		return;
 
+	// Spin animation
+	isScreenChanged = true;
+	if (spinnerIndex == 0)
+		spinnerIndex++;
+	else
+		spinnerIndex = 0;
+
 	// Adjacent quadrant changes
 	if (prevQuadrant == 2 || prevQuadrant == 3) {
 		if (quadrant == (prevQuadrant + 1)) {
@@ -374,8 +383,16 @@ static void CheckSpin() {
 
 void GameTick()
 {
+	if (objectsDeleted >= numberOfHitobjects)
+		isPlaying = false;
+
 	if (!isPlaying)
 		return;
+
+	if (health == 0) {
+		xil_printf("HP = 0, Game Over!\r\n");
+		isPlaying = false;
+	}
 
 	if (time == 0)
 		AudioDMATransmitSong((u32 *)0x0B000000, songLength);
@@ -402,26 +419,19 @@ void GameTick()
 	//	CheckCollision(&gameHitobjects[objectsDeleted]);
 	//}
 
-	if (objectsDrawn != objectsDeleted) {
-		isScreenChanged = true;
-	}
-
 	if (isSliding) {
 		CheckSlider(&gameHitobjects[objectsDeleted]);
 		isScreenChanged = true;
+		return;
 	}
 
 	if (isSpinning) {
-		isScreenChanged = false;
 		CheckSpin();
+		return;
 	}
 
-	if (objectsDeleted >= numberOfHitobjects)
-		isPlaying = false;
-
-	if (health == 0) {
-		xil_printf("HP = 0, Game Over!\r\n");
-		isPlaying = false;
+	if (objectsDrawn != objectsDeleted) {
+		isScreenChanged = true;
 	}
 }
 
@@ -478,7 +488,9 @@ void play_game(HitObject *gameHitobjectsIn)
 
 		while (objectsDeleted < numberOfHitobjects && isPlaying)
 		{
-			//int startTime = time;
+#if FPS == 1
+			int startTime = time;
+#endif
 
 			if (isScreenChanged) {
 				isScreenChanged = false;
@@ -487,9 +499,11 @@ void play_game(HitObject *gameHitobjectsIn)
 				DisplayBufferAndMouse(mouseX, mouseY);
 			}
 
-			//int duration = (time - startTime) * 1000 / CLOCK_HZ;
-			//int fps = 1000 / duration;
-			//xil_printf("					Draw Time:%3dms FPS:%3d\r\n", duration, fps);
+#if FPS == 1
+			int duration = (time - startTime) * 1000 / CLOCK_HZ;
+			int fps = 1000 / duration;
+			xil_printf("					Draw Time:%3dms FPS:%3d\r\n", duration, fps);
+#endif
 		}
 
 		isPlaying = false;
@@ -566,8 +580,8 @@ void generateSlider(int x, int y, int acIndex, int comboIndex,
  * -------------------------------------------/
  * Creates a spinner on the screen.
  * ------------------------------------------*/
-void generateSpinner(int x, int y){
-	DrawSpinner(x, y);
+void generateSpinner(int x, int y, int spinnerIndex) {
+	DrawSpinner(x, y, spinnerIndex);
 }
 
 void generateObject(HitObject *currentObjectPtr) {
@@ -611,7 +625,7 @@ void generateObject(HitObject *currentObjectPtr) {
 			break;
 		case 3:
 //			xil_printf("Drawing Object[Spinner]\r\n");
-			generateSpinner(currentObjectPtr->x, currentObjectPtr->y);
+			generateSpinner(currentObjectPtr->x, currentObjectPtr->y, spinnerIndex);
 			break;
 		default:
 			xil_printf("Drawing Object[?]\r\n");
