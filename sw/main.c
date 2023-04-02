@@ -211,7 +211,7 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 			return;
 		}
 
-		isSetupComplete = USB_SetupDevice(UsbInstancePtr, status);
+		isSetupComplete = USB_SetupDevice(&usbWithHostInstance, status);
 
 		if (isSetupComplete) {
 			// Enable Periodic Schedule
@@ -276,7 +276,7 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 //	USB_WriteSetupBuffer(buffSetup, 0, XUSBPS_REQ_SET_ADDRESS, 0xC, 0, 0); // Set Address 0x0C
 //	USB_WriteSetupBuffer(buffSetup, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0200, 0, 0x54); // Get Config
 
-	isSetupComplete = USB_SetupDevice(UsbInstancePtr, status);
+	isSetupComplete = USB_SetupDevice(&usbWithHostInstance, status);
 
 	// Enable Async
 	XUsbPs_SetBits(UsbInstancePtr, XUSBPS_CMD_OFFSET, XUSBPS_CMD_ASE_MASK);
