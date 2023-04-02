@@ -172,7 +172,7 @@ static void TimerIntrHandler(void *CallBackRef) {
 	XTtcPs_ClearInterruptStatus((XTtcPs * ) CallBackRef, Interrupt_staus);
 
 	time++;
-	GameTick();
+	game_tick();
 }
 
 int status = 0;

@@ -19,29 +19,25 @@
 #include "audio.h"
 #include "sd.h"
 
-#define FPS 0
-#define AC_MS 10 // Approach Circle Update ms
-#define CIRCLE_RAD_SQUARED 4096		//  64^2 - Hit circle hitbox
-#define SLIDER_RAD_SQUARED 15625	// 125^2 - Sliding hitbox
+#define SHOW_FPS 0 // Show FPS
 
 /*--------------------------------------------------------------*/
 /* Global Variables												*/
 /*--------------------------------------------------------------*/
 extern long time;
 extern int numberOfHitobjects;
-int accuracy; // = score / maxScore
-int score;
-
-static int maxScore;
-
-static HitObject *gameHitobjects;
+int ar = 0;
 int volume = 10;
 int beatoffset = 0;
 
-static bool isLMB = false;
-static bool isRMB = false;
-static bool wasLMB = false;
-static bool wasRMB = false;
+int accuracy; // = score / maxScore
+int score;
+
+/*--------------------------------------------------------------*/
+/* Local Variables												*/
+/*--------------------------------------------------------------*/
+static int maxScore;
+
 static int mouseX = 0;
 static int mouseY = 0;
 
@@ -49,42 +45,12 @@ static bool isPlaying = false;
 static bool isSliding = false;
 static bool isSpinning = false;
 
-// raising edge flags to be handled/cleared during gameplay
-static bool isLMBPress = false;
-static bool isRMBPress = false;
-static bool isLMBRelease = false;
 
-#define ROTATION_CCW 1
-#define ROTATION_CW 2
-
-static u32 rotation = 0; // 4x u8 buffer for storing quadrant changes
-static int quadrant = 0;
-static int prevQuadrant = 0;
-static int spins = 0;
-
-char audioFileName[maxAudioFilenameSize];
-static int songLength;
-
-int ar = 0;
-double sliderSpeed = .5;
-static double sliderFollowerX = 0.0;
-static double sliderFollowerY = 0.0;
-static Node_t *nextCurvePoint = NULL;
-static int slides = 0;
-
-static bool isScreenChanged = false;
-static int objectsDrawn = 0;
-static int objectsDeleted = 0;
-static int spinnerIndex = 0;
-// Change to linked list? ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-static int drawnObjectHead = 0;
-static int drawnObjectTail = 0;
-static int drawnObjectIndices[DRAWN_OBJECTS_MAX] =
-	{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
-
+/*--------------------------------------------------------------*/
+/* Game Stats													*/
+/*--------------------------------------------------------------*/
 #define MAX_HEALTH 300
-int health = 300;
+static int health = 300;
 
 static void AddHealth()
 {
@@ -120,7 +86,24 @@ static void AddScore(int time)
 	xil_printf("\r\n");
 }
 
-static void AddObject() {
+
+/*--------------------------------------------------------------*/
+/* Manipulating Objects in draw buffer							*/
+/*--------------------------------------------------------------*/
+static int objectsDrawn = 0;
+static int objectsDeleted = 0;
+static bool isScreenChanged = false;
+
+static HitObject *gameHitobjects;
+// Change to linked list? ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+static int drawnObjectHead = 0;
+static int drawnObjectTail = 0;
+static int drawnObjectIndices[DRAWN_OBJECTS_MAX] =
+	{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	 -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+
+static void AddObject()
+{
 	if (drawnObjectIndices[drawnObjectTail] != -1) {
 		xil_printf("Error: drawnObjectIndices array overloaded! Overwriting...\n");
 
@@ -140,7 +123,8 @@ static void AddObject() {
 	isScreenChanged = true;
 }
 
-static void DeleteObject() {
+static void DeleteObject()
+{
 	drawnObjectIndices[drawnObjectHead] = -1;
 
 	if (++drawnObjectHead >= DRAWN_OBJECTS_MAX)
@@ -163,7 +147,128 @@ static void DeleteObject() {
 	isScreenChanged = true;
 }
 
-static void RedrawGameplay() {
+bool IsDisplayed(int objectIndex)
+{
+	for (int displayIndex = 0; displayIndex < DRAWN_OBJECTS_MAX; displayIndex++) {
+		if (drawnObjectIndices[displayIndex] == -1)
+			continue;
+		else if (drawnObjectIndices[displayIndex] == objectIndex)
+			return true;
+	}
+
+	return false;
+}
+
+
+/*--------------------------------------------------------------*/
+/* Object Drawing												*/
+/*--------------------------------------------------------------*/
+#define AC_MS 10 // Approach Circle Update ms
+
+static double sliderFollowerX = 0.0;
+static double sliderFollowerY = 0.0;
+static int spinnerIndex = 0;
+
+// Creates a hit circle on the screen.
+static void generateHitCircle(int x, int y, int acIndex, int comboIndex)
+{
+	DrawCircle(x, y);
+
+	if (acIndex != 0)
+		DrawApproachCircle(x, y, acIndex);
+
+	if (comboIndex < 1)
+		return;
+	else if (comboIndex < 10) {
+		DrawInt(comboIndex, 1, x - DIGIT_WIDTH / 2, y - DIGIT_HEIGHT / 2);
+	} else if (comboIndex < 100) {
+		DrawInt(comboIndex, 2, x - DIGIT_WIDTH, y - DIGIT_HEIGHT / 2);
+	}
+}
+
+// Creates a slider on the screen.
+static void generateSlider(int x, int y, int acIndex, int comboIndex, int curveNumPoints, Node_t *curvePointsHead, bool sliding)
+{
+	Node_t *currNode = curvePointsHead;
+	CurvePoint *point = (CurvePoint *)currNode->data;
+
+	currNode = currNode->next;
+
+	//draw other line segments
+	for (int i = 0; i < curveNumPoints - 1; ++i) {
+		CurvePoint *prevPoint = point;
+		point = (CurvePoint *)currNode->data;
+
+		drawline(prevPoint->x, prevPoint->y, point->x, point->y, 0x0000FF);
+
+		currNode = currNode->next;
+	}
+
+	DrawSliderEnd(point->x, point->y);
+
+	if (sliding)
+		DrawSliderEnd(x, y);
+	else
+		generateHitCircle(x, y, acIndex, comboIndex);
+}
+
+// Creates a spinner on the screen.
+static void generateSpinner(int x, int y, int spinnerIndex)
+{
+	DrawSpinner(x, y, spinnerIndex);
+}
+
+static void generateObject(HitObject *currentObjectPtr, bool sliding)
+{
+	int dt = 0;
+	int aCircleIndex = 0;
+
+	switch (currentObjectPtr->type) {
+	case 0:
+		//			xil_printf("Drawing Object[HitCircle]\r\n");
+		dt = currentObjectPtr->time - time;
+		if (dt <= 0) {
+			aCircleIndex = 0;
+		} else if (dt >= AC_MS * NUM_A_CIRCLES) {
+			aCircleIndex = NUM_A_CIRCLES - 1;
+		} else {
+			// close approach circle every AC_MS
+			aCircleIndex = dt / AC_MS;
+		}
+
+		generateHitCircle(currentObjectPtr->x, currentObjectPtr->y,
+			aCircleIndex, currentObjectPtr->comboLabel);
+
+		break;
+	case 1:
+		//			xil_printf("Drawing Object[Slider]\r\n");
+		dt = currentObjectPtr->time - time;
+		if (dt <= 0) {
+			aCircleIndex = 0;
+		} else if (dt >= AC_MS * NUM_A_CIRCLES) {
+			aCircleIndex = NUM_A_CIRCLES - 1;
+		} else {
+			// close approach circle every AC_MS
+			aCircleIndex = dt / AC_MS;
+		}
+
+		generateSlider(currentObjectPtr->x, currentObjectPtr->y,
+			aCircleIndex, currentObjectPtr->comboLabel,
+			currentObjectPtr->curveNumPoints,
+			currentObjectPtr->curvePointsHead, sliding);
+		break;
+	case 3:
+		//			xil_printf("Drawing Object[Spinner]\r\n");
+		generateSpinner(currentObjectPtr->x, currentObjectPtr->y, spinnerIndex);
+		break;
+	default:
+		xil_printf("Drawing Object[?]\r\n");
+		break;
+	}
+}
+
+static void RedrawGameplay()
+{
 	FillScreen(0x3F3F3F);
 
 	for (int displayIndex = DRAWN_OBJECTS_MAX - 1; displayIndex >= 0; displayIndex--) {
@@ -191,54 +296,28 @@ static void RedrawGameplay() {
 	DisplayBufferAndMouse(mouseX, mouseY);
 }
 
-static void CheckCollision(HitObject *currentObjectPtr) {
-	if (isLMBPress) {
-		if (currentObjectPtr->type == OBJ_TYPE_SPINNER) {
-			isSpinning = true;
-			quadrant = 0;
-			rotation = 0;
-			spins = 0;
 
-			isLMBPress = false;
-			return;
-		}
+/*--------------------------------------------------------------*/
+/* Game Logic													*/
+/*--------------------------------------------------------------*/
+#define CIRCLE_RAD_SQUARED 4096		//  64^2 - Hit circle hitbox
+#define SLIDER_RAD_SQUARED 15625	// 125^2 - Sliding hitbox
 
-		int dx = mouseX - currentObjectPtr->x;
-		int dy = mouseY - currentObjectPtr->y;
+#define ROTATION_CCW 1
+#define ROTATION_CW 2
 
-		if (dx*dx + dy*dy <= CIRCLE_RAD_SQUARED) {
-			if (currentObjectPtr->type == OBJ_TYPE_CIRCLE) {
-				AddScore(time - currentObjectPtr->time);
-				AddHealth();
-				xil_printf("Score: %d\r\n", score);
-				DeleteObject();
-			} else if (currentObjectPtr->type == OBJ_TYPE_SLIDER) {
-				xil_printf("Starting slider, hold it...\r\n");
-				sliderFollowerX = currentObjectPtr->x;
-				sliderFollowerY = currentObjectPtr->y;
-				nextCurvePoint = currentObjectPtr->curvePointsHead->next;
-				slides = 0;
-				isSliding = true;
-			}
-		} else {
-			xil_printf("Miss!\r\n");
-		}
+static u32 rotation = 0; // 4x u8 buffer for storing quadrant changes
+static int quadrant = 0;
+static int prevQuadrant = 0;
+static int spins = 0;
 
-		isLMBPress = false;
-	} else if (isLMBRelease && isSliding) {
-		maxScore += 300;
-		score += 100;
-		xil_printf("Slider broke! +100\r\nScore: %d\r\n", score);
-		DeleteObject();
-		isLMBRelease = false;
-	} else if (isLMBRelease && isSpinning) {
-		isSpinning = false;
-		isLMBRelease = false;
-	}
-}
+static int slides = 0;
+double sliderSpeed = .5;
+static Node_t *nextCurvePoint = NULL;
 
 // Moves the slider follower towards point
-void MoveSlider(HitObject* currentObjectPtr, int x1, int y1) {
+void MoveSlider(HitObject* currentObjectPtr, int x1, int y1)
+{
 	double dx = x1 - sliderFollowerX;
 	double dy = y1 - sliderFollowerY;
 
@@ -271,7 +350,8 @@ void MoveSlider(HitObject* currentObjectPtr, int x1, int y1) {
 	}
 }
 
-static void CheckSlider(HitObject *currentObjectPtr) {
+static void CheckSlider(HitObject *currentObjectPtr)
+{
 	CurvePoint *point = (CurvePoint *)nextCurvePoint->data;
 
 	int x0 = (int)sliderFollowerX;
@@ -323,7 +403,8 @@ static void CheckSlider(HitObject *currentObjectPtr) {
 	MoveSlider(currentObjectPtr, x1, y1);
 }
 
-static void CheckSpin() {
+static void CheckSpin()
+{
 	int dx = mouseX - CENTER_X;
 	int dy = mouseY - CENTER_Y;
 	prevQuadrant = quadrant;
@@ -407,7 +488,128 @@ static void CheckSpin() {
 	}
 }
 
-void GameTick()
+
+/*--------------------------------------------------------------*/
+/* Mouse Functions												*/
+/*--------------------------------------------------------------*/
+static bool isLMB = false;
+static bool isRMB = false;
+static bool wasLMB = false;
+static bool wasRMB = false;
+
+// raising edge flags to be handled/cleared during gameplay
+static bool isLMBPress = false;
+static bool isRMBPress = false;
+static bool isLMBRelease = false;
+
+int getMouseX()
+{
+	return mouseX;
+}
+
+int getMouseY()
+{
+	return mouseY;
+}
+
+static void CheckCollision(HitObject *currentObjectPtr)
+{
+	if (isLMBPress) {
+		if (currentObjectPtr->type == OBJ_TYPE_SPINNER) {
+			isSpinning = true;
+			quadrant = 0;
+			rotation = 0;
+			spins = 0;
+
+			isLMBPress = false;
+			return;
+		}
+
+		int dx = mouseX - currentObjectPtr->x;
+		int dy = mouseY - currentObjectPtr->y;
+
+		if (dx * dx + dy * dy <= CIRCLE_RAD_SQUARED) {
+			if (currentObjectPtr->type == OBJ_TYPE_CIRCLE) {
+				AddScore(time - currentObjectPtr->time);
+				AddHealth();
+				xil_printf("Score: %d\r\n", score);
+				DeleteObject();
+			} else if (currentObjectPtr->type == OBJ_TYPE_SLIDER) {
+				xil_printf("Starting slider, hold it...\r\n");
+				sliderFollowerX = currentObjectPtr->x;
+				sliderFollowerY = currentObjectPtr->y;
+				nextCurvePoint = currentObjectPtr->curvePointsHead->next;
+				slides = 0;
+				isSliding = true;
+			}
+		} else {
+			xil_printf("Miss!\r\n");
+		}
+
+		isLMBPress = false;
+	} else if (isLMBRelease && isSliding) {
+		maxScore += 300;
+		score += 100;
+		xil_printf("Slider broke! +100\r\nScore: %d\r\n", score);
+		DeleteObject();
+		isLMBRelease = false;
+	} else if (isLMBRelease && isSpinning) {
+		isSpinning = false;
+		isLMBRelease = false;
+	}
+}
+
+void UpdateMouse(bool isLMBIn, bool isRMBIn, int dx, int dy)
+{
+	wasLMB = isLMB;
+	wasRMB = isRMB;
+	isLMB = isLMBIn;
+	isRMB = isRMBIn;
+	mouseX += dx;
+	mouseY += dy;
+
+	if (mouseX < 0)
+		mouseX = 0;
+	else if (mouseX > VGA_WIDTH - 1)
+		mouseX = VGA_WIDTH - 1;
+
+	if (mouseY < 0)
+		mouseY = 0;
+	else if (mouseY > VGA_HEIGHT - 1)
+		mouseY = VGA_HEIGHT - 1;
+
+	// If the next object is not displayed, skip check
+	if (!IsDisplayed(objectsDeleted)) {
+		return;
+	}
+
+	if (isLMB && !wasLMB) {
+		isLMBPress = true;
+		CheckCollision(&gameHitobjects[objectsDeleted]);
+	}
+
+	if (!isLMB && wasLMB) {
+		isLMBRelease = true;
+		CheckCollision(&gameHitobjects[objectsDeleted]);
+	}
+
+	if (isRMB && !wasRMB) {
+		isRMBPress = true;
+	}
+
+	//xil_printf("Cursor at (%d, %d)\r\n", mouseX, mouseY);
+}
+
+
+/*-------------------------------------------/
+ * game_tick()
+ * Called by a 1ms interrupt timer.
+ * Processes the game logic
+/-------------------------------------------*/
+char audioFileName[maxAudioFilenameSize];
+static int songLength;
+
+void game_tick()
 {
 	if (objectsDeleted >= numberOfHitobjects)
 		isPlaying = false;
@@ -472,6 +674,8 @@ static void game_init()
 	isRMBPress = false;
 	isLMBRelease = false;
 
+	nextCurvePoint = NULL;
+
 	objectsDrawn = 0;
 	objectsDeleted = 0;
 	drawnObjectHead = 0;
@@ -487,13 +691,12 @@ static void game_init()
 	health = 300;
 }
 
+
 /*-------------------------------------------/
- / play_game()
- /--------------------------------------------/
- / Mainly a test function that iterates
- / through a array of hit objects at the
- / correct time. Not final game.
- /-------------------------------------------*/
+ * play_game()
+ * Sets up game and draws the frames when
+ * not processing a game_tick()
+/-------------------------------------------*/
 void play_game(HitObject *gameHitobjectsIn)
 {
 	if (gameHitobjectsIn == NULL)
@@ -515,7 +718,7 @@ void play_game(HitObject *gameHitobjectsIn)
 
 		while (objectsDeleted < numberOfHitobjects && isPlaying)
 		{
-#if FPS == 1
+#if SHOW_FPS == 1
 			int startTime = time;
 #endif
 
@@ -526,7 +729,7 @@ void play_game(HitObject *gameHitobjectsIn)
 				DisplayBufferAndMouse(mouseX, mouseY);
 			}
 
-#if FPS == 1
+#if SHOW_FPS == 1
 			int duration = (time - startTime) * 1000 / CLOCK_HZ;
 			int fps = 1000 / duration;
 			xil_printf("					Draw Time:%3dms FPS:%3d\r\n", duration, fps);
@@ -551,175 +754,4 @@ void play_game(HitObject *gameHitobjectsIn)
 		play_game(gameHitobjects);
 		break;
 	}
-}
-
-/* -------------------------------------------/
- * generateHitCircle()
- * -------------------------------------------/
- * Creates a hit circle on the screen.
- * ------------------------------------------*/
-void generateHitCircle(int x, int y, int acIndex, int comboIndex)
-{
-	DrawCircle(x, y);
-
-	if (acIndex != 0)
-		DrawApproachCircle(x, y, acIndex);
-
-	if (comboIndex < 1)
-		return;
-	else if (comboIndex < 10) {
-		DrawInt(comboIndex, 1, x - DIGIT_WIDTH / 2, y - DIGIT_HEIGHT / 2);
-	} else if (comboIndex < 100) {
-		DrawInt(comboIndex, 2, x - DIGIT_WIDTH, y - DIGIT_HEIGHT / 2);
-	}
-}
-
-/* -------------------------------------------/
- * generateSlider()
- * -------------------------------------------/
- * Creates a slider on the screen.
- * ------------------------------------------*/
-void generateSlider(int x, int y, int acIndex, int comboIndex, int curveNumPoints, Node_t *curvePointsHead, bool sliding)
-{
-	Node_t *currNode = curvePointsHead;
-	CurvePoint *point = (CurvePoint *)currNode->data;
-
-	currNode = currNode->next;
-
-	//draw other line segments
-	for (int i = 0; i < curveNumPoints - 1; ++i) {
-		CurvePoint *prevPoint = point;
-		point = (CurvePoint *)currNode->data;
-
-		drawline(prevPoint->x, prevPoint->y, point->x, point->y, 0x0000FF);
-
-		currNode = currNode->next;
-	}
-
-	DrawSliderEnd(point->x, point->y);
-
-	if (sliding)
-		DrawSliderEnd(x, y);
-	else
-		generateHitCircle(x, y, acIndex, comboIndex);
-}
-
-/* -------------------------------------------/
- * generateSpinner()
- * -------------------------------------------/
- * Creates a spinner on the screen.
- * ------------------------------------------*/
-void generateSpinner(int x, int y, int spinnerIndex) {
-	DrawSpinner(x, y, spinnerIndex);
-}
-
-void generateObject(HitObject *currentObjectPtr, bool sliding) {
-	int dt = 0;
-	int aCircleIndex = 0;
-
-	switch (currentObjectPtr->type) {
-		case 0:
-//			xil_printf("Drawing Object[HitCircle]\r\n");
-			dt = currentObjectPtr->time - time;
-			if (dt <= 0) {
-				aCircleIndex = 0;
-			} else if (dt >= AC_MS * NUM_A_CIRCLES) {
-				aCircleIndex = NUM_A_CIRCLES - 1;
-			} else {
-				// close approach circle every AC_MS
-				aCircleIndex = dt / AC_MS;
-			}
-
-			generateHitCircle(currentObjectPtr->x, currentObjectPtr->y,
-					aCircleIndex, currentObjectPtr->comboLabel);
-
-			break;
-		case 1:
-//			xil_printf("Drawing Object[Slider]\r\n");
-			dt = currentObjectPtr->time - time;
-			if (dt <= 0) {
-				aCircleIndex = 0;
-			}
-			else if (dt >= AC_MS * NUM_A_CIRCLES) {
-				aCircleIndex = NUM_A_CIRCLES - 1;
-			}
-			else {
-				// close approach circle every AC_MS
-				aCircleIndex = dt / AC_MS;
-			}
-
-			generateSlider(currentObjectPtr->x, currentObjectPtr->y,
-					aCircleIndex, currentObjectPtr->comboLabel,
-					currentObjectPtr->curveNumPoints,
-					currentObjectPtr->curvePointsHead, sliding);
-			break;
-		case 3:
-//			xil_printf("Drawing Object[Spinner]\r\n");
-			generateSpinner(currentObjectPtr->x, currentObjectPtr->y, spinnerIndex);
-			break;
-		default:
-			xil_printf("Drawing Object[?]\r\n");
-			break;
-	}
-}
-
-bool IsDisplayed(int objectIndex) {
-	for (int displayIndex = 0; displayIndex < DRAWN_OBJECTS_MAX; displayIndex++) {
-		if (drawnObjectIndices[displayIndex] == -1)
-			continue;
-		else if (drawnObjectIndices[displayIndex] == objectIndex)
-			return true;
-	}
-
-	return false;
-}
-
-void UpdateMouse(bool isLMBIn, bool isRMBIn, int dx, int dy) {
-	wasLMB = isLMB;
-	wasRMB = isRMB;
-	isLMB = isLMBIn;
-	isRMB = isRMBIn;
-	mouseX += dx;
-	mouseY += dy;
-
-	if (mouseX < 0)
-		mouseX = 0;
-	else if (mouseX > VGA_WIDTH - 1)
-		mouseX = VGA_WIDTH - 1;
-
-	if (mouseY < 0)
-		mouseY = 0;
-	else if (mouseY > VGA_HEIGHT - 1)
-		mouseY = VGA_HEIGHT - 1;
-
-	// If the next object is not displayed, skip check
-	if (!IsDisplayed(objectsDeleted)) {
-		return;
-	}
-
-	if (isLMB && !wasLMB) {
-		isLMBPress = true;
-		CheckCollision(&gameHitobjects[objectsDeleted]);
-	}
-
-	if (!isLMB && wasLMB) {
-		isLMBRelease = true;
-		CheckCollision(&gameHitobjects[objectsDeleted]);
-	}
-
-	if (isRMB && !wasRMB) {
-		isRMBPress = true;
-	}
-
-	//xil_printf("Cursor at (%d, %d)\r\n", mouseX, mouseY);
-}
-
-int getMouseX()
-{
-	return mouseX;
-}
-
-int getMouseY()
-{
-	return mouseY;
 }
