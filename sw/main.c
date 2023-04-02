@@ -76,16 +76,6 @@ typedef struct {
 
 extern int *image_output_buffer;
 
-// Sprites
-int *imageMenu;
-int *imageBg;
-int *imageCircle;
-int *imageCircleOverlay;
-int *spinner[2];
-int *imageRanking;
-int *imageNum[10];
-int *approachCircle[NUM_A_CIRCLES];
-
 long time = 0;
 
 //----------------------------------------------------

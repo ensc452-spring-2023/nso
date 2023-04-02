@@ -16,14 +16,15 @@ int *image_buffer_pointer = (int *)VDMA_BUFFER_1;
 
 Node_t * masterRenderList;
 
-extern int *imageMenu;
-extern int *imageBg;
-extern int *imageCircle;
-extern int *imageCircleOverlay;
-extern int *spinner[2];
-extern int *imageRanking;
-extern int *imageNum[10];
-extern int *approachCircle[NUM_A_CIRCLES];
+int *imageMenu;
+int *imageBg;
+int *imageCircle;
+int *imageCircleOverlay;
+int *spinner[2];
+int *imageRanking;
+int *imageNum[10];
+int *percent;
+int *approachCircle[NUM_A_CIRCLES];
 
 void SetPixel(int *pixelAddr, int colour) {
 	*pixelAddr = colour;
@@ -208,6 +209,12 @@ void DrawInt(unsigned int num, int length, int posX, int posY) {
 		num /= 10;
 		posX -= DIGIT_WIDTH;
 	}
+}
+
+void DrawPercent(unsigned int num, int length, int posX, int posY)
+{
+	DrawInt(num, length, posX, posY);
+	DrawSprite(percent, PERCENT_WIDTH, PERCENT_HEIGHT, posX + DIGIT_WIDTH * length, posY);
 }
 
 void DrawMenu() {

@@ -29,6 +29,9 @@ extern long time;
 extern int numberOfHitobjects;
 extern int score;
 
+static int maxScore;
+static int percent; // = score / maxScore
+
 static HitObject *gameHitobjects;
 int volume = 10;
 int beatoffset = 0;
@@ -99,6 +102,7 @@ static void AddScore(int time)
 {
 	xil_printf("Hit Timing:%4d ", time);
 
+	maxScore += 300;
 	if (abs(time) < 55) {
 		score += 300;
 		xil_printf("+300");
@@ -143,9 +147,13 @@ static void DeleteObject() {
 //	xil_printf("Deleting Object. Position: [%d,%d] Time: [%dms]\r\n", gameHitobjects[objectsDeleted].x,
 //			gameHitobjects[objectsDeleted].y,gameHitobjects[objectsDeleted].time);
 
-	if (gameHitobjects[objectsDeleted].type == OBJ_TYPE_SLIDER) {
+	if (gameHitobjects[objectsDeleted].type == OBJ_TYPE_CIRCLE) {
+		maxScore += 300;
+	} else if (gameHitobjects[objectsDeleted].type == OBJ_TYPE_SLIDER) {
+		maxScore += 300;
 		isSliding = false;
 	} else if (gameHitobjects[objectsDeleted].type == OBJ_TYPE_SPINNER) {
+		maxScore += 500;
 		isSpinning = false;
 	}
 
@@ -167,8 +175,19 @@ static void RedrawGameplay() {
 		DrawSliderEnd((int)sliderFollowerX, (int)sliderFollowerY);
 	}
 
+	// Health bar
 	DrawRectangle(0, 20, health, 20, 0xFFFFFFFF);
-	DrawInt(score, 7, 1590, 0);
+	// Score
+	DrawInt(score, 7, 1580, 0);
+	// Accuracy
+	percent = score * 100 / maxScore;
+	if (percent > 99)
+		DrawPercent(percent, 3, 1721, 72);
+	else if (percent > 9)
+		DrawPercent(percent, 2, 1768, 72);
+	else if (percent >= 0)
+		DrawPercent(percent, 1, 1815, 72);
+
 	DisplayBufferAndMouse(mouseX, mouseY);
 }
 
@@ -207,6 +226,7 @@ static void CheckCollision(HitObject *currentObjectPtr) {
 
 		isLMBPress = false;
 	} else if (isLMBRelease && isSliding) {
+		maxScore += 300;
 		score += 100;
 		xil_printf("Slider broke! +100\r\nScore: %d\r\n", score);
 		DeleteObject();
@@ -261,6 +281,7 @@ static void CheckSlider(HitObject *currentObjectPtr) {
 	int dy = mouseY - y0;
 
 	if (dx*dx + dy*dy > CIRCLE_RAD_SQUARED) {
+		maxScore += 300;
 		score += 100;
 		xil_printf("Slider broke! +100\r\nScore: %d\r\n", score);
 		DeleteObject();
@@ -281,6 +302,7 @@ static void CheckSlider(HitObject *currentObjectPtr) {
 			slides++;
 
 			if (slides >= currentObjectPtr->slides) {
+				maxScore += 300;
 				score += 300;
 				AddHealth();
 				xil_printf("Slider complete! +300\r\nScore: %d\r\n", score);
@@ -368,10 +390,14 @@ static void CheckSpin() {
 	if (rotation == 0x01010101) {
 		spins++;
 		rotation = 0;
+		maxScore += 300;
+		score += 100;
 		xil_printf("Completed CCW Spin! +100 Spins: %d\r\nScore: %d\r\n", spins, score);
 	} else if (rotation == 0x02020202) {
 		spins++;
 		rotation = 0;
+		maxScore += 300;
+		score += 100;
 		xil_printf("Completed CW Spin! +100 Spins: %d\r\nScore: %d\r\n", spins, score);
 	}
 
@@ -456,6 +482,7 @@ static void game_init()
 	}
 
 	time = -1200;
+	maxScore = 0;
 	score = 0;
 	health = 300;
 }
