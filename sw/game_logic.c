@@ -2,6 +2,7 @@
  /	!nso - Game Logic														   /
  /-----------------------------------------------------------------------------/
  /	William Zhang
+ /	Bowie Gian
  /	04/03/2023
  /	game_logic.c
  /
@@ -30,8 +31,9 @@ int ar = 0;
 int volume = 10;
 int beatoffset = 0;
 
-int accuracy; // = score / maxScore
 int score;
+int accuracy; // = score / maxScore
+int maxCombo;
 
 /*--------------------------------------------------------------*/
 /* Local Variables												*/
@@ -51,6 +53,8 @@ static bool isSpinning = false;
 /*--------------------------------------------------------------*/
 #define MAX_HEALTH 300
 static int health = 300;
+static int currObjMaxScore = 0;
+static int combo;
 
 static void AddHealth()
 {
@@ -66,11 +70,26 @@ static void DrainHealth()
 		health = 0;
 }
 
-static void AddScore(int time)
+static void BreakCombo()
+{
+	if (combo > maxCombo)
+		maxCombo = combo;
+
+	combo = 0;
+}
+
+static void AddMaxScore(int num)
+{
+	maxScore += num;
+	currObjMaxScore += num;
+}
+
+static void JudgeTiming(int time)
 {
 	xil_printf("Hit Timing:%4d ", time);
 
-	maxScore += 300;
+	AddMaxScore(300);
+
 	if (abs(time) < 55) {
 		score += 300;
 		xil_printf("+300");
@@ -123,8 +142,13 @@ static void AddObject()
 	isScreenChanged = true;
 }
 
-static void DeleteObject()
+static void DeleteObject(bool hit)
 {
+	if (hit)
+		combo++;
+	else
+		BreakCombo();
+
 	drawnObjectIndices[drawnObjectHead] = -1;
 
 	if (++drawnObjectHead >= DRAWN_OBJECTS_MAX)
@@ -134,15 +158,16 @@ static void DeleteObject()
 //			gameHitobjects[objectsDeleted].y,gameHitobjects[objectsDeleted].time);
 
 	if (gameHitobjects[objectsDeleted].type == OBJ_TYPE_CIRCLE) {
-		maxScore += 300;
+		maxScore += 300 - currObjMaxScore;
 	} else if (gameHitobjects[objectsDeleted].type == OBJ_TYPE_SLIDER) {
-		maxScore += 300;
+		maxScore += 600 - currObjMaxScore;
 		isSliding = false;
 	} else if (gameHitobjects[objectsDeleted].type == OBJ_TYPE_SPINNER) {
-		maxScore += 500;
+		maxScore += 500 - currObjMaxScore;
 		isSpinning = false;
 	}
 
+	currObjMaxScore = 0;
 	objectsDeleted++;
 	isScreenChanged = true;
 }
@@ -292,6 +317,8 @@ static void RedrawGameplay()
 	// Accuracy
 	accuracy = score * 100 / maxScore;
 	DrawPercent(accuracy, 1721, 72);
+	// Combo
+	DrawCombo(combo, 0, VGA_HEIGHT - DIGIT_HEIGHT);
 
 	DisplayBufferAndMouse(mouseX, mouseY);
 }
@@ -361,10 +388,10 @@ static void CheckSlider(HitObject *currentObjectPtr)
 	int dy = mouseY - y0;
 
 	if (dx*dx + dy*dy > SLIDER_RAD_SQUARED) {
-		maxScore += 300;
+		AddMaxScore(300);
 		score += 100;
 		xil_printf("Slider broke! +100\r\nScore: %d\r\n", score);
-		DeleteObject();
+		DeleteObject(false);
 	}
 
 	int x1 = point->x;
@@ -382,11 +409,11 @@ static void CheckSlider(HitObject *currentObjectPtr)
 			slides++;
 
 			if (slides >= currentObjectPtr->slides) {
-				maxScore += 300;
+				AddMaxScore(300);
 				score += 300;
 				AddHealth();
 				xil_printf("Slider complete! +300\r\nScore: %d\r\n", score);
-				DeleteObject();
+				DeleteObject(true);
 			} else {
 				if ((slides % 2) == 0)
 					nextCurvePoint = currCurvePoint->next;
@@ -471,20 +498,20 @@ static void CheckSpin()
 	if (rotation == 0x01010101) {
 		spins++;
 		rotation = 0;
-		maxScore += 300;
+		AddMaxScore(100);
 		score += 100;
 		xil_printf("Completed CCW Spin! +100 Spins: %d\r\nScore: %d\r\n", spins, score);
 	} else if (rotation == 0x02020202) {
 		spins++;
 		rotation = 0;
-		maxScore += 300;
+		AddMaxScore(100);
 		score += 100;
 		xil_printf("Completed CW Spin! +100 Spins: %d\r\nScore: %d\r\n", spins, score);
 	}
 
 	if (spins >= 5) {
 		AddHealth();
-		DeleteObject();
+		DeleteObject(true);
 	}
 }
 
@@ -529,11 +556,12 @@ static void CheckCollision(HitObject *currentObjectPtr)
 		int dy = mouseY - currentObjectPtr->y;
 
 		if (dx * dx + dy * dy <= CIRCLE_RAD_SQUARED) {
+			JudgeTiming(time - currentObjectPtr->time);
+			xil_printf("Score: %d\r\n", score);
+			AddHealth();
+
 			if (currentObjectPtr->type == OBJ_TYPE_CIRCLE) {
-				AddScore(time - currentObjectPtr->time);
-				AddHealth();
-				xil_printf("Score: %d\r\n", score);
-				DeleteObject();
+				DeleteObject(true);
 			} else if (currentObjectPtr->type == OBJ_TYPE_SLIDER) {
 				xil_printf("Starting slider, hold it...\r\n");
 				sliderFollowerX = currentObjectPtr->x;
@@ -541,6 +569,7 @@ static void CheckCollision(HitObject *currentObjectPtr)
 				nextCurvePoint = currentObjectPtr->curvePointsHead->next;
 				slides = 0;
 				isSliding = true;
+				combo++;
 			}
 		} else {
 			xil_printf("Miss!\r\n");
@@ -548,10 +577,10 @@ static void CheckCollision(HitObject *currentObjectPtr)
 
 		isLMBPress = false;
 	} else if (isLMBRelease && isSliding) {
-		maxScore += 300;
+		AddMaxScore(300);
 		score += 100;
 		xil_printf("Slider broke! +100\r\nScore: %d\r\n", score);
-		DeleteObject();
+		DeleteObject(false);
 		isLMBRelease = false;
 	} else if (isLMBRelease && isSpinning) {
 		isSpinning = false;
@@ -632,12 +661,12 @@ void game_tick()
 	if (time >= gameHitobjects[objectsDeleted].time + 150) {
 		if (isSpinning) {
 			if (time >= gameHitobjects[objectsDeleted].endTime) {
-				DeleteObject();
+				DeleteObject(false);
 				DrainHealth();
 				xil_printf("Object expired!\r\n");
 			}
 		} else if (!isSliding) {
-			DeleteObject();
+			DeleteObject(false);
 			DrainHealth();
 			xil_printf("Object expired!\r\n");
 		}
@@ -685,9 +714,11 @@ static void game_init()
 		drawnObjectIndices[i] = -1;
 	}
 
-	time = -1200;
+	time = -1200 + beatoffset;
 	maxScore = 0;
 	score = 0;
+	maxCombo = 0;
+	combo = 0;
 	health = 300;
 }
 

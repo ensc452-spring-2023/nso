@@ -36,6 +36,7 @@ extern int *image_buffer_pointer;
 extern int *image_mouse_buffer;
 extern int accuracy;
 extern int score;
+extern int maxCombo;
 
 static HitObject *gameHitobjects;
 
@@ -268,16 +269,16 @@ void settings_menu()
 		settings_menu();
 		break;
 	case '3':
-		if (beatoffset < 5)
+		if (beatoffset < 100)
 		{
-			beatoffset++;
+			beatoffset += 5;
 		}
 		settings_menu();
 		break;
 	case '4':
-		if (beatoffset > -5)
+		if (beatoffset > -100)
 		{
-			beatoffset--;
+			beatoffset -= 5;
 		}
 		settings_menu();
 		break;
@@ -297,7 +298,7 @@ void settings_menu()
  /-------------------------------------------*/
 void highscore_menu()
 {
-	DrawStats(score, 0, accuracy);
+	DrawStats(score, maxCombo, accuracy);
 	xil_printf("Score:%d\n\r", score);
 	xil_printf("Accuracy:%c\n\r", '-');
 	xil_printf("Play again? \t(p)\n\r");

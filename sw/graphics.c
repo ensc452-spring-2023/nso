@@ -16,6 +16,7 @@ int *image_buffer_pointer = (int *)VDMA_BUFFER_1;
 
 Node_t * masterRenderList;
 
+// Loaded from sd card
 int *imageMenu;
 int *imageBg;
 int *imageCircle;
@@ -24,6 +25,7 @@ int *spinner[2];
 int *imageRanking;
 int *imageNum[10];
 int *percent;
+int *comboX;
 int *approachCircle[NUM_A_CIRCLES];
 
 void SetPixel(int *pixelAddr, int colour) {
@@ -223,6 +225,24 @@ void DrawPercent(unsigned int num, int posX, int posY)
 	DrawSprite(percent, PERCENT_WIDTH, PERCENT_HEIGHT, posX + 3 * DIGIT_WIDTH, posY);
 }
 
+void DrawCombo(unsigned int num, int posX, int posY)
+{
+	int digits = 0;
+
+	if (num > 999)
+		digits = 4;
+	else if (num > 99)
+		digits = 3;
+	else if (num > 9)
+		digits = 2;
+	else if (num >= 0)
+		digits = 1;
+
+	DrawInt(num, digits, posX, posY);
+	DrawSprite(comboX, COMBOX_WIDTH, COMBOX_HEIGHT,
+			posX + digits * DIGIT_WIDTH, posY + 25);
+}
+
 void DrawMenu() {
 	memcpy(image_buffer_pointer, imageMenu, NUM_BYTES_BUFFER);
 	DisplayBuffer();
@@ -242,8 +262,8 @@ void DrawStats(int score, int combo, int accuracy) {
 	memcpy(image_buffer_pointer, imageBg, NUM_BYTES_BUFFER);
 	DrawSprite(imageRanking, RANKING_WIDTH, RANKING_HEIGHT, 0, 200);
 	DrawInt(score, 7, 150, 210);
-	DrawInt(combo, 3, 20, 635);
-	DrawPercent(accuracy, 310, 635);
+	DrawCombo(combo, 20, 635);
+	DrawPercent(accuracy, 260, 635);
 	DisplayBuffer();
 }
 

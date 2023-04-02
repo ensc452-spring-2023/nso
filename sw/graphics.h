@@ -40,6 +40,8 @@ typedef struct RenderNode{
 #define DIGIT_HEIGHT 71
 #define PERCENT_WIDTH 55
 #define PERCENT_HEIGHT 71
+#define COMBOX_WIDTH 35
+#define COMBOX_HEIGHT 37
 #define CIRCLE_WIDTH 155
 #define CIRCLE_HALF 77
 //#define SPINNER_WIDTH 689
@@ -81,6 +83,8 @@ void DrawSpinner(int x, int y, int index);
 void DrawInt(unsigned int num, int length, int posX, int posY);
 // Top Left
 void DrawPercent(unsigned int num, int posX, int posY);
+// Top Left
+void DrawCombo(unsigned int num, int posX, int posY);
 
 void DrawMenu();
 void DrawGame(int score);

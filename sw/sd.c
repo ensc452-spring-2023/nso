@@ -33,6 +33,7 @@ extern int *spinner[2];
 extern int *imageRanking;
 extern int *imageNum[10];
 extern int *percent;
+extern int *comboX;
 extern int *approachCircle[NUM_A_CIRCLES];
 
 #if DEBUG == 1
@@ -116,6 +117,7 @@ void loadSprites() {
 	loadFileFromSD("Sprites\\menu.bin", &imageMenu);
 	loadFileFromSD("Sprites\\bgG.bin", &imageBg);
 	loadFileFromSD("Sprites\\percent.bin", &percent);
+	loadFileFromSD("Sprites\\x.bin", &comboX);
 
 	for (int i = 0; i < NUM_A_CIRCLES; i++) {
 		char tempPath[32];
