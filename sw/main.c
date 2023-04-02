@@ -142,19 +142,19 @@ void BTN_Intr_Handler(void *InstancePtr) {
 		DrawGame(score);
 	} else if (btn_value == BTN_RIGHT) {
 		screen = SCREEN_STAT;
-		DrawStats(score);
+		DrawStats(score, 0, 0);
 	} else if (btn_value == BTN_UP) {
 		score += 369;
 		if (screen == SCREEN_GAME)
 			DrawGame(score);
 		else if (screen == SCREEN_STAT)
-			DrawStats(score);
+			DrawStats(score, 0, 0);
 	} else if (btn_value == BTN_DOWN) {
 		score -= 144;
 		if (screen == SCREEN_GAME)
 			DrawGame(score);
 		else if (screen == SCREEN_STAT)
-			DrawStats(score);
+			DrawStats(score, 0, 0);
 	}
 
 	(void) XGpio_InterruptClear(&BTNInst, BTN_INT);

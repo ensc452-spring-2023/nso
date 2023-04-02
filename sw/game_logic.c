@@ -21,16 +21,18 @@
 
 #define FPS 0
 #define AC_MS 10 // Approach Circle Update ms
+#define CIRCLE_RAD_SQUARED 4096		//  64^2 - Hit circle hitbox
+#define SLIDER_RAD_SQUARED 15625	// 125^2 - Sliding hitbox
 
 /*--------------------------------------------------------------*/
 /* Global Variables												*/
 /*--------------------------------------------------------------*/
 extern long time;
 extern int numberOfHitobjects;
-extern int score;
+int accuracy; // = score / maxScore
+int score;
 
 static int maxScore;
-static int percent; // = score / maxScore
 
 static HitObject *gameHitobjects;
 int volume = 10;
@@ -168,11 +170,14 @@ static void RedrawGameplay() {
 		if (drawnObjectIndices[displayIndex] == -1)
 			continue;
 
-		generateObject(&gameHitobjects[drawnObjectIndices[displayIndex]]);
+		if (drawnObjectIndices[displayIndex] == objectsDeleted)
+			generateObject(&gameHitobjects[drawnObjectIndices[displayIndex]], isSliding);
+		else
+			generateObject(&gameHitobjects[drawnObjectIndices[displayIndex]], false);
 	}
 
 	if (isSliding) {
-		DrawSliderEnd((int)sliderFollowerX, (int)sliderFollowerY);
+		DrawApproachCircle((int)sliderFollowerX, (int)sliderFollowerY, NUM_A_CIRCLES - 1);
 	}
 
 	// Health bar
@@ -180,13 +185,8 @@ static void RedrawGameplay() {
 	// Score
 	DrawInt(score, 7, 1580, 0);
 	// Accuracy
-	percent = score * 100 / maxScore;
-	if (percent > 99)
-		DrawPercent(percent, 3, 1721, 72);
-	else if (percent > 9)
-		DrawPercent(percent, 2, 1768, 72);
-	else if (percent >= 0)
-		DrawPercent(percent, 1, 1815, 72);
+	accuracy = score * 100 / maxScore;
+	DrawPercent(accuracy, 1721, 72);
 
 	DisplayBufferAndMouse(mouseX, mouseY);
 }
@@ -280,7 +280,7 @@ static void CheckSlider(HitObject *currentObjectPtr) {
 	int dx = mouseX - x0;
 	int dy = mouseY - y0;
 
-	if (dx*dx + dy*dy > CIRCLE_RAD_SQUARED) {
+	if (dx*dx + dy*dy > SLIDER_RAD_SQUARED) {
 		maxScore += 300;
 		score += 100;
 		xil_printf("Slider broke! +100\r\nScore: %d\r\n", score);
@@ -579,8 +579,7 @@ void generateHitCircle(int x, int y, int acIndex, int comboIndex)
  * -------------------------------------------/
  * Creates a slider on the screen.
  * ------------------------------------------*/
-void generateSlider(int x, int y, int acIndex, int comboIndex,
-		int curveNumPoints, Node_t *curvePointsHead)
+void generateSlider(int x, int y, int acIndex, int comboIndex, int curveNumPoints, Node_t *curvePointsHead, bool sliding)
 {
 	Node_t *currNode = curvePointsHead;
 	CurvePoint *point = (CurvePoint *)currNode->data;
@@ -599,7 +598,10 @@ void generateSlider(int x, int y, int acIndex, int comboIndex,
 
 	DrawSliderEnd(point->x, point->y);
 
-	generateHitCircle(x, y, acIndex, comboIndex);
+	if (sliding)
+		DrawSliderEnd(x, y);
+	else
+		generateHitCircle(x, y, acIndex, comboIndex);
 }
 
 /* -------------------------------------------/
@@ -611,7 +613,7 @@ void generateSpinner(int x, int y, int spinnerIndex) {
 	DrawSpinner(x, y, spinnerIndex);
 }
 
-void generateObject(HitObject *currentObjectPtr) {
+void generateObject(HitObject *currentObjectPtr, bool sliding) {
 	int dt = 0;
 	int aCircleIndex = 0;
 
@@ -648,7 +650,8 @@ void generateObject(HitObject *currentObjectPtr) {
 
 			generateSlider(currentObjectPtr->x, currentObjectPtr->y,
 					aCircleIndex, currentObjectPtr->comboLabel,
-					currentObjectPtr->curveNumPoints, currentObjectPtr->curvePointsHead);
+					currentObjectPtr->curveNumPoints,
+					currentObjectPtr->curvePointsHead, sliding);
 			break;
 		case 3:
 //			xil_printf("Drawing Object[Spinner]\r\n");

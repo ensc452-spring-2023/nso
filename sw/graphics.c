@@ -211,10 +211,16 @@ void DrawInt(unsigned int num, int length, int posX, int posY) {
 	}
 }
 
-void DrawPercent(unsigned int num, int length, int posX, int posY)
+void DrawPercent(unsigned int num, int posX, int posY)
 {
-	DrawInt(num, length, posX, posY);
-	DrawSprite(percent, PERCENT_WIDTH, PERCENT_HEIGHT, posX + DIGIT_WIDTH * length, posY);
+	if (num > 99)
+		DrawInt(num, 3, posX, posY);
+	else if (num > 9)
+		DrawInt(num, 2, posX + DIGIT_WIDTH, posY);
+	else if (num >= 0)
+		DrawInt(num, 1, posX + 2 * DIGIT_WIDTH, posY);
+
+	DrawSprite(percent, PERCENT_WIDTH, PERCENT_HEIGHT, posX + 3 * DIGIT_WIDTH, posY);
 }
 
 void DrawMenu() {
@@ -232,12 +238,12 @@ void DrawGame(int score) {
 	DisplayBuffer();
 }
 
-void DrawStats(int score) {
+void DrawStats(int score, int combo, int accuracy) {
 	memcpy(image_buffer_pointer, imageBg, NUM_BYTES_BUFFER);
 	DrawSprite(imageRanking, RANKING_WIDTH, RANKING_HEIGHT, 0, 200);
 	DrawInt(score, 7, 150, 210);
-	DrawInt(0, 3, 20, 635);
-	DrawInt(0, 3, 310, 635);
+	DrawInt(combo, 3, 20, 635);
+	DrawPercent(accuracy, 310, 635);
 	DisplayBuffer();
 }
 
