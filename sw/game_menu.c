@@ -48,41 +48,31 @@ static HitObject *gameHitobjects;
  /-------------------------------------------*/
 void main_menu()
 {
+	DrawMenu();
 	char input = ' ';
 
-	xil_printf("#################\n\r");
-	xil_printf("Play \t (p)\n\r");
-	xil_printf("Settings (s)\n\r");
-	xil_printf("Black    (d)\n\r");
-	xil_printf("Quit \t (q)\n\r");
-	xil_printf("#################\n\r");
+	while (true) {
+		xil_printf("#################\n\r");
+		xil_printf("Play \t (p)\n\r");
+		xil_printf("Settings (s)\n\r");
+		xil_printf("Quit \t (q)\n\r");
+		xil_printf("#################\n\r");
 
-	scanf(" %c", &input);
+		scanf(" %c", &input);
 
-	switch (input)
-	{
-	case 'p':
-		song_select_menu();
-		break;
-	case 's':
-		settings_menu();
-		break;
-	case 'd':
-		while(1)
-		{
-			memset((int*) 0x2000000, 0x1F1F1F, NUM_BYTES_BUFFER);
-			DrawMouse(getMouseX(), getMouseY());
+		switch (input) {
+		case 'p':
+			song_select_menu();
+			break;
+		case 's':
+			settings_menu();
+			break;
+		case 'q':
+			xil_printf("EXITING APPLICATION\r\n");
+			return;
+		default:
+			break;
 		}
-		//SetPixel(image_output_pointer + ((VGA_WIDTH*200)+(100)), 0xFFFFFF);
-		//SetPixel(image_output_pointer + ((VGA_WIDTH*200)+(200)), 0x00FF00);
-		//SetPixel(temp_pointer + (VGA_WIDTH *100), 0x00FF00);
-		break;
-	case 'q':
-		xil_printf("EXITING APPLICATION (but not really)\r\n");
-		break;
-	default:
-		main_menu();
-		break;
 	}
 }
 
@@ -98,139 +88,89 @@ void song_select_menu()
 	char input = ' ';
 	DIR dir;
 	FRESULT result;
-	static char files[maxFiles][maxFilenameSize] =
-	{ 0 };
+	static char files[maxFiles][maxFilenameSize] = { 0 };
 	int filesNum = 0;
 
-	xil_printf("Select Song\n\r");
-
 	result = f_mount(&FS_instance, "0:/", 1);
-	if (result != 0)
-	{
+	if (result != 0) {
 		xil_printf("Couldn't mount SD Card.\r\n");
 		return;
 	}
 
 	result = f_opendir(&dir, "0:/");
-	if (result != FR_OK)
-	{
+	if (result != FR_OK) {
 		xil_printf("Couldn't read root directory. \r\n");
 		return;
 	}
 
-	while (1)
-	{
+	while (1) {
 		FILINFO fileinfo;
 		result = f_readdir(&dir, &fileinfo);
-		if (result != FR_OK || fileinfo.fname[0] == 0)
-		{
+		if (result != FR_OK || fileinfo.fname[0] == 0) {
 			break;
 		}
-		if (fileinfo.fattrib & AM_DIR)
-		{                 // It's a directory
-		}
-		else if (strstr(fileinfo.fname, ".osu") != NULL
-				|| strstr(fileinfo.fname, ".OSU") != NULL)
-		{ // It's a beatmap file
+		if (fileinfo.fattrib & AM_DIR) {                 // It's a directory
+		} else if (strstr(fileinfo.fname, ".osu") != NULL
+			|| strstr(fileinfo.fname, ".OSU") != NULL) { // It's a beatmap file
 			strcpy(files[filesNum++], fileinfo.fname);
 		}
 	}
 	f_closedir(&dir);
 
-	if (filesNum == 0)
-	{
+	if (filesNum == 0) {
 		xil_printf("No beatmaps found.\r\n");
 		return;
 	}
 
-	for (int i = 0; i < filesNum; ++i)
-	{
-		xil_printf("(%d)\t%s\n\r", i + 1, files[i]);
-	}
+	while (true) {
+		xil_printf("Select Song\n\r");
 
-	xil_printf("(b)\tBack\n\r");
-	xil_printf("#################\n\r");
+		for (int i = 0; i < filesNum; ++i) {
+			xil_printf("(%d)\t%s\n\r", i + 1, files[i]);
+		}
 
-	scanf(" %c", &input);
+		xil_printf("(b)\tBack\n\r");
+		xil_printf("#################\n\r");
 
-	switch (input)
-	{
-	case '1':
-		if (filesNum < 1)
-		{
+		scanf(" %c", &input);
+		int selection = 0;
+
+		switch (input) {
+		case '1':
+			selection = 1;
+			break;
+		case '2':
+			selection = 2;
+			break;
+		case '3':
+			selection = 3;
+			break;
+		case '4':
+			selection = 4;
+			break;
+		case '5':
+			selection = 5;
+			break;
+		case 'b':
+			return;
+		default:
+			continue;
+		}
+
+		if (selection < 1 || selection > filesNum) {
 			xil_printf("Invalid Choice.\r\n");
 			return;
+		} else {
+			xil_printf("Selected Song %d\r\n", selection);
 		}
-		else
-		{
-			xil_printf("Selected Song 1\r\n");
+		gameHitobjects = parse_beatmaps(files[selection - 1], FS_instance);
+
+		while (true) {
+			play_game(gameHitobjects);
+
+			if (highscore_menu() == 0)
+				break;
 		}
-		gameHitobjects = parse_beatmaps(files[0], FS_instance);
-		play_game(gameHitobjects);
-		highscore_menu();
-		break;
-	case '2':
-		if (filesNum < 2)
-		{
-			xil_printf("Invalid Choice.\r\n");
-			return;
-		}
-		else
-		{
-			xil_printf("Selected Song 2\r\n");
-		}
-		gameHitobjects = parse_beatmaps(files[1], FS_instance);
-		play_game(gameHitobjects);
-		highscore_menu();
-		break;
-	case '3':
-		if (filesNum < 3)
-		{
-			xil_printf("Invalid Choice.\r\n");
-			return;
-		}
-		else
-		{
-			xil_printf("Selected Song 3\r\n");
-		}
-		gameHitobjects = parse_beatmaps(files[2], FS_instance);
-		play_game(gameHitobjects);
-		highscore_menu();
-		break;
-	case '4':
-		if (filesNum < 4)
-		{
-			xil_printf("Invalid Choice.\r\n");
-			return;
-		}
-		else
-		{
-			xil_printf("Selected Song 4\r\n");
-		}
-		gameHitobjects = parse_beatmaps(files[3], FS_instance);
-		play_game(gameHitobjects);
-		highscore_menu();
-		break;
-	case '5':
-		if (filesNum < 5)
-		{
-			xil_printf("Invalid Choice.\r\n");
-			return;
-		}
-		else
-		{
-			xil_printf("Selected Song 5\r\n");
-		}
-		gameHitobjects = parse_beatmaps(files[4], FS_instance);
-		play_game(gameHitobjects);
-		highscore_menu();
-		break;
-	case 'b':
-		return;
-		break;
-	default:
-		return;
-		break;
 	}
 }
 
@@ -245,49 +185,42 @@ void settings_menu()
 {
 	char input = ' ';
 
-	xil_printf("Volume:%d\t(1)(2)\n\r", volume);
-	xil_printf("Music Offset:%d\t(3)(4)\n\r", beatoffset);
-	xil_printf("Back\t\t(b)\n\r");
-	xil_printf("#################\n\r");
+	
 
-	scanf(" %c", &input);
+	while (true) {
+		xil_printf("Volume:%d\t\t(1)(2)\n\r", volume);
+		xil_printf("Music Offset:%dms\t(3)(4)\n\r", beatoffset);
+		xil_printf("Back\t\t\t(b)\n\r");
+		xil_printf("#################\n\r");
 
-	switch (input)
-	{
-	case '1':
-		if (volume < 10)
-		{
-			volume++;
+		scanf(" %c", &input);
+
+		switch (input) {
+		case '1':
+			if (volume < 10) {
+				volume++;
+			}
+			break;
+		case '2':
+			if (volume > 0) {
+				volume--;
+			}
+			break;
+		case '3':
+			if (beatoffset < 100) {
+				beatoffset += 5;
+			}
+			break;
+		case '4':
+			if (beatoffset > -100) {
+				beatoffset -= 5;
+			}
+			break;
+		case 'b':
+			return;
+		default:
+			break;
 		}
-		settings_menu();
-		break;
-	case '2':
-		if (volume > 0)
-		{
-			volume--;
-		}
-		settings_menu();
-		break;
-	case '3':
-		if (beatoffset < 100)
-		{
-			beatoffset += 5;
-		}
-		settings_menu();
-		break;
-	case '4':
-		if (beatoffset > -100)
-		{
-			beatoffset -= 5;
-		}
-		settings_menu();
-		break;
-	case 'b':
-		return;
-		break;
-	default:
-		main_menu();
-		break;
 	}
 }
 
@@ -296,30 +229,27 @@ void settings_menu()
  /--------------------------------------------/
  / Literally does so little
  /-------------------------------------------*/
-void highscore_menu()
+int highscore_menu()
 {
 	DrawStats(score, maxCombo, accuracy);
-	xil_printf("Score:%d\n\r", score);
-	xil_printf("Accuracy:%c\n\r", '-');
-	xil_printf("Play again? \t(p)\n\r");
-	xil_printf("Main Menu \t(m)\n\r");
-	xil_printf("#################\n\r");
-
 	char input = ' ';
-	scanf(" %c", &input);
 
-	switch (input)
-	{
-	case 'p':
-		play_game(gameHitobjects);
-		highscore_menu();
-		break;
-	case 'm':
-		free_hitobjects(gameHitobjects);
-		break;
-	default:
-		free_hitobjects(gameHitobjects);
-		main_menu();
-		break;
+	while (true) {
+		xil_printf("Play again? \t(p)\n\r");
+		xil_printf("Song Select \t(b)\n\r");
+		xil_printf("#################\n\r");
+
+		scanf(" %c", &input);
+
+		switch (input) {
+		case 'p':
+			return 1;
+			break;
+		case 'b':
+			return 0;
+			break;
+		default:
+			break;
+		}
 	}
 }
