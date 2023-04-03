@@ -14,4 +14,4 @@
 void main_menu();
 void song_select_menu();
 void settings_menu();
-void highscore_menu();
+int highscore_menu();

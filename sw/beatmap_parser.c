@@ -282,5 +282,5 @@ void free_hitobjects(HitObject *gameHitobjects)
 {
 	free(gameHitobjects);
 
-
+	// need to iterate and free curvepoints
 }

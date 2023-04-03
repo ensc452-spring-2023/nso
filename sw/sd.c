@@ -239,15 +239,15 @@ int loadWAVEfileintoMemory(char * filename, u32 * songBuffer) {
 
 	u32 *pSource = (u32*) songBuffer;
 	for (int i = 0; i < song_counter; ++i) {
-		short left  = (short) ((pSource[i]>>16) & 0xFFFF);
+//		short left  = (short) ((pSource[i]>>16) & 0xFFFF);
 		short right = (short) ((pSource[i]>> 0) & 0xFFFF);
-		int left_i = (int)left;
-		if (left_i>32767) left_i = 32767;
-		if (left_i<-32767) left_i = -32767;
+//		int left_i = (int)left;
+//		if (left_i>32767) left_i = 32767;
+//		if (left_i<-32767) left_i = -32767;
 		if (right>32767) right = 32767;
 		if (right<-32767) right = -32767;
-		left = 0;
-		pSource[i] = ((u32)right<<16) + (u32)left;
+		//left = 0;
+		pSource[i] = ((u32)right<<16) + (u32)0;
 	}
 
 	return song_counter;
