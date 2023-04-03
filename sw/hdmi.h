@@ -51,6 +51,9 @@
 #define VDMA_BUFFER_1       0x08800000
 #define VDMA_BUFFER_2       0x09000000
 
+#define	GRAPHICS_DMA_BUFFERSIZE 10000
+#define CDMA_0_DEVICE_ID 		XPAR_AXI_CDMA_0_DEVICE_ID
+
 /*--------------------------------------------------------------*/
 /* Functions Prototypes 										*/
 /*--------------------------------------------------------------*/
@@ -59,3 +62,4 @@ int InitVPSS(unsigned int DeviceId);
 int IicConfig(unsigned int DeviceIdPS);
 int InitVDMA(unsigned int DeviceId);
 int InitHdmi();
+void InitCDMA(unsigned int DeviceId);

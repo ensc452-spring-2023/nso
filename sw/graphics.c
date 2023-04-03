@@ -6,6 +6,8 @@
 #include <stdbool.h>
 #include "hdmi.h"
 #include "linked_list.h"
+#include "xaxicdma.h"
+#include "xaxivdma.h"
 
 #define ALPHA_THRESHOLD 100
 
@@ -29,12 +31,42 @@ int *comboX;
 int *approachCircle[NUM_A_CIRCLES];
 int *reverse;
 
+extern XAxiCdma	CDMA0Inst;
+extern XAxiVdma VDMAInst;
+extern int * frameBuffers[];
+
+u8 activeBuffer	= 1;
+u8 inactiveBuffer = 0;
+
 void SetPixel(int *pixelAddr, int colour) {
 	*pixelAddr = colour;
 }
 
 void DisplayBuffer() {
-	memcpy(image_output_buffer, image_buffer_pointer, NUM_BYTES_BUFFER);
+	//Xil_DCacheFlushRange(image_buffer_pointer, NUM_BYTES_BUFFER);
+
+//	XAxiCdma_Bd *BdPtr;
+//	XAxiCdma_Bd *BdCurPtr;
+//
+//	XAxiCdma_BdRingAlloc(&CDMA0Inst, 1, &BdPtr);
+//	BdCurPtr = BdPtr;
+//
+//	XAxiCdma_BdSetSrcBufAddr(BdCurPtr, (u32) image_buffer_pointer);
+//	XAxiCdma_BdSetDstBufAddr(BdCurPtr, (u32) image_output_buffer);
+//	XAxiCdma_BdSetLength(BdCurPtr, NUM_BYTES_BUFFER);
+//
+//	XAxiCdma_BdRingToHw(&CDMA0Inst, 1, BdPtr, Example_CallBack, (void *) &CDMA0Inst);
+//
+	//Xil_DCacheInvalidateRange(image_buffer_pointer, NUM_BYTES_BUFFER);
+
+//	static int frame = 0;
+//	u8 temp = activeBuffer;
+//	activeBuffer = inactiveBuffer;
+//	inactiveBuffer = temp;
+
+//	XAxiVdma_StartParking(&VDMAInst, activeBuffer, XAXIVDMA_READ);
+
+//	memcpy(image_output_buffer, image_buffer_pointer, NUM_BYTES_BUFFER);
 }
 
 unsigned int mouseColour = 0xFFFF00;
@@ -68,12 +100,18 @@ void DisplayBufferAndMouse(int x, int y) {
 }
 
 void FillScreen(int colour) {
-	memset(image_buffer_pointer, colour, NUM_BYTES_BUFFER);
+	u8 temp = activeBuffer;
+	activeBuffer = inactiveBuffer;
+	inactiveBuffer = temp;
+
+	XAxiVdma_StartParking(&VDMAInst, activeBuffer, XAXIVDMA_READ);
+
+	memset(frameBuffers[inactiveBuffer], colour, NUM_BYTES_BUFFER);
 }
 
 void DrawRectangle(int x, int y, int width, int height, int colour) {
-	int *end = image_buffer_pointer + x + (y + height) * VGA_WIDTH;
-	for (int *temp_pointer = image_buffer_pointer + x + y * VGA_WIDTH; temp_pointer < end; temp_pointer += VGA_WIDTH) {
+	int *end = frameBuffers[inactiveBuffer] + x + (y + height) * VGA_WIDTH;
+	for (int *temp_pointer = frameBuffers[inactiveBuffer] + x + y * VGA_WIDTH; temp_pointer < end; temp_pointer += VGA_WIDTH) {
 		memset(temp_pointer, colour, width * PIXEL_BYTES);
 	}
 }
@@ -132,7 +170,7 @@ void PixelAlpha(int *under, int *over) {
 
 // Performance - much faster for hitcircles
 void DrawSprite(int *sprite, int width, int height, int posX, int posY) {
-	int *temp_pointer = (int *)image_buffer_pointer;
+	int *temp_pointer = (int *)frameBuffers[inactiveBuffer];
 	int *sprite_pointer = (int *)sprite;
 	int copySize = 0;
 
@@ -253,12 +291,12 @@ void DrawCombo(unsigned int num, int posX, int posY)
 }
 
 void DrawMenu() {
-	memcpy(image_buffer_pointer, imageMenu, NUM_BYTES_BUFFER);
+	memcpy(frameBuffers[inactiveBuffer], imageMenu, NUM_BYTES_BUFFER);
 	DisplayBuffer();
 }
 
 void DrawGame(int score) {
-	memcpy(image_buffer_pointer, imageBg, NUM_BYTES_BUFFER);
+	memcpy(frameBuffers[inactiveBuffer], imageBg, NUM_BYTES_BUFFER);
 	DrawInt(score, 7, 951, 0);
 	DrawSprite(imageCircle, CIRCLE_WIDTH, CIRCLE_WIDTH, 400, 500);
 	DrawSprite(imageCircleOverlay, CIRCLE_WIDTH, CIRCLE_WIDTH, 400, 500);
@@ -268,7 +306,7 @@ void DrawGame(int score) {
 }
 
 void DrawStats(int score, int combo, int accuracy) {
-	memcpy(image_buffer_pointer, imageBg, NUM_BYTES_BUFFER);
+	memcpy(frameBuffers[inactiveBuffer], imageBg, NUM_BYTES_BUFFER);
 	DrawSprite(imageRanking, RANKING_WIDTH, RANKING_HEIGHT, 0, 200);
 	DrawInt(score, 7, 150, 210);
 	DrawCombo(combo, 20, 635);
@@ -284,7 +322,7 @@ void plotLine(int x0, int y0, int x1, int y1, int colour) {
 	int y = y0;
 
 	for (int x = x0; x < x1; ++x) {
-		SetPixel(image_buffer_pointer+((VGA_WIDTH*y)+(x)), colour);
+		SetPixel(frameBuffers[inactiveBuffer]+((VGA_WIDTH*y)+(x)), colour);
 		if (D > 0) {
 			y = y + 1;
 			D = D - (2 * dx);
@@ -319,7 +357,7 @@ void drawline(int x0, int y0, int x1, int y1, int colour)
 		for (int y = y0; y < y1; ++y)
 		{
 			x = x0 + dx * (y-y0)/dy;
-			SetPixel(image_buffer_pointer+((VGA_WIDTH*y)+(x)), colour);
+			SetPixel(frameBuffers[inactiveBuffer]+((VGA_WIDTH*y)+(x)), colour);
 		}
 	} else {
 		// Line algorithm needs x0 < x1
@@ -403,6 +441,91 @@ Node_t * removeRenderNodeByID(Node_t ** masterRenderHead, u32 id)
 		}
 		if (current->next == NULL) {
 			return NULL;
+		}
+		current = current->next;
+	}
+}
+
+void Example_CallBack(void *CallBackRef, u32 IrqMask, int *NumBdPtr) {
+
+	XAxiCdma *InstancePtr;
+	int BdCount;
+	XAxiCdma_Bd *BdPtr;
+	int Status;
+	int Tmp;
+
+	InstancePtr = (XAxiCdma *) CallBackRef;
+	Tmp = *NumBdPtr;
+
+	/* If error interrupt happened, the driver interrupt handler
+	 * has already reset the hardware
+	 */
+//	if (IrqMask & XAXICDMA_XR_IRQ_ERROR_MASK) {
+//		//Error = 1;
+//	}
+	if (IrqMask & XAXICDMA_XR_IRQ_IOC_MASK) {
+
+		/* Get all processed BDs from hardware
+		 */
+		BdCount = XAxiCdma_BdRingFromHw(InstancePtr, Tmp, &BdPtr);
+
+		/* Release finished BDs
+		 *
+		 * It is ok if BdCount is zero as a previous callback may
+		 * have ripen all finished BDs
+		 */
+		if (BdCount > 0) {
+
+			Status = XAxiCdma_BdRingFree(InstancePtr, BdCount, BdPtr);
+
+			if (Status != XST_SUCCESS) {
+				xdbg_printf(XDBG_DEBUG_ERROR,
+						"Error free BD %x\r\n", Status);
+
+				//Error = 1;
+				return;
+			}
+
+			//Done += BdCount;
+			*NumBdPtr = Tmp - BdCount;
+		}
+	}
+
+	return;
+}
+
+void drawFrame(Node_t ** masterRenderHead) {
+	if (*masterRenderHead == NULL) {
+		return;
+	}
+
+	Node_t * current = *masterRenderHead;
+	while (current != NULL) {
+		if (((RenderNode *) current->data)->delete == TRUE) {
+
+			//DrawSpriteReal(int *sprite, int width, int height, int posX, int posY);
+			//queueRenderToCDMA(current->data, &CDMA0Inst, 1);
+			//queueRenderToDMA(current->data, &GraphicsDMA1Inst, &GraphicsDMA2Inst, &CDMA0Inst, 0);
+			ll_deleteNodeHead(masterRenderHead, current);
+		}
+		current = current->next;
+	}
+
+	current = *masterRenderHead;
+	while (current != NULL) {
+		if (((RenderNode *) current->data)->drawnBuffer0 == FALSE) {
+
+//			DrawSpriteReal(
+//					((RenderNode *) current->data)->address,
+//					((RenderNode *) current->data)->size_x,
+//					((RenderNode *) current->data)->size_y,
+//					((RenderNode *) current->data)->x,
+//					((RenderNode *) current->data)->y
+//					);
+
+			//queueRenderToCDMA(current->data, &CDMA0Inst, 1);
+			//queueRenderToDMA(current->data, &GraphicsDMA1Inst, &GraphicsDMA2Inst, &CDMA0Inst, 0);
+			((RenderNode *) current->data)->drawnBuffer0 = TRUE;
 		}
 		current = current->next;
 	}

@@ -33,6 +33,7 @@
 #include "sd.h"
 #include "hdmi.h"
 #include "audio.h"
+#include "xaxicdma.h"
 
 // Parameter definitions
 #define INTC_DEVICE_ID 			XPAR_PS7_SCUGIC_0_DEVICE_ID
@@ -42,6 +43,9 @@
 #define BTN_INT 				XGPIO_IR_CH1_MASK
 #define TIMER_IRPT_INTR 		XPS_TTC0_0_INT_ID
 #define VBLANK_INTR				XPAR_FABRIC_INTERRUPT_CONVERTER_0_IRQ_OUT_INTR
+#define CDMA_0_INTR				XPAR_FABRIC_AXI_CDMA_0_CDMA_INTROUT_INTR
+
+Node_t * masterRenderList;
 
 XGpio BTNInst;
 XScuGic INTCInst;
@@ -52,11 +56,13 @@ XIicPs IicInst;
 XAxiVdma VDMAInst;
 static UsbWithHost usbWithHostInstance;
 static XUsbPs *UsbInstancePtr; /* The instance of the USB Controller */
+XAxiCdma	CDMA0Inst;
 
 static int btn_value;
 HitObject * gameHitobjects;
 int numberOfHitobjects = 0;
 u32 bgColour = 0x1F1F1F;
+int * frameBuffers[3] = {VDMA_BUFFER_0, VDMA_BUFFER_1, VDMA_BUFFER_0};
 
 // Define button values
 #define BTN_CENTER 	1
@@ -65,7 +71,7 @@ u32 bgColour = 0x1F1F1F;
 #define BTN_RIGHT 	8
 #define BTN_UP 		16
 
-#define WILLIAMMOUSE 0
+#define WILLIAMMOUSE 1
 
 typedef struct {
 	u32 OutputHz; /* Output frequency */
@@ -75,6 +81,7 @@ typedef struct {
 } TmrCntrSetup;
 
 extern int *image_output_buffer;
+extern int *image_buffer_pointer;
 
 long time = 0;
 
@@ -165,7 +172,6 @@ void BTN_Intr_Handler(void *InstancePtr) {
 
 int activeFrameBuffer = 0;
 int drawingFrameBuffer = 1;
-int * frameBuffers[3] = {VDMA_BUFFER_0, VDMA_BUFFER_1, VDMA_BUFFER_0};
 
 static void TimerIntrHandler(void *CallBackRef) {
 	XTtcPs_GetInterruptStatus((XTtcPs * ) CallBackRef);
@@ -326,9 +332,16 @@ int main(void) {
 				NORM_NONCACHE);
 	}
 
+	for (int i = 0; i <= 896; i++) {
+		Xil_SetTlbAttributes((INTPTR) (image_buffer_pointer + i * 2048),
+				NORM_NONCACHE);
+	}
+
 	loadSprites();
 	InitHdmi();
 	InitAudio();
+
+	//Xil_DCacheDisable();
 
 	screen = SCREEN_MENU;
 	DrawMenu();
@@ -410,6 +423,17 @@ int IntcInitFunction(u16 DeviceId, XGpio *GpioInstancePtr) {
 
 	//Enable the interrupt for this specific device.
 	XScuGic_Enable(&INTCInst, VBLANK_INTR);
+
+	//-------------------------------------------------------
+
+	//Connect the interrupt handler to the GIC.
+	status = XScuGic_Connect(&INTCInst, CDMA_0_INTR, (Xil_ExceptionHandler) XAxiCdma_IntrHandler, (void *) &CDMA0Inst);
+	if (status != XST_SUCCESS) {
+		return status;
+	}
+
+	//Enable the interrupt for this specific device.
+	XScuGic_Enable(&INTCInst, CDMA_0_INTR);
 
 	return XST_SUCCESS;
 }

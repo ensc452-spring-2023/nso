@@ -22,13 +22,17 @@
 
 typedef struct RenderNode{
 	u32 * 	address;
+	u16 	size_x;			//sprite x
+	u16 	size_y;			//sprite y
 	u32 	size;			//in bytes
+	u16		x;
+	u16		y;
 	u8		drawnBuffer0;
 	u8		drawnBuffer1;
 	u8		delete;			//request to delete
+	u8		screenWidth;	//object to render is the size of the screen y
 	u32		id;
 } RenderNode;
-
 /*--------------------------------------------------------------*/
 /* Definitions					 								*/
 /*--------------------------------------------------------------*/
@@ -104,5 +108,7 @@ Node_t * addRenderNode(Node_t ** masterRenderHead, RenderNode * renderNode);
 Node_t * removeRenderNodeByNode(Node_t * node);
 Node_t * removeRenderNodeByRenderNode(Node_t ** masterRenderHead, RenderNode * node);
 Node_t * removeRenderNodeByID(Node_t ** masterRenderHead, u32 id);
+
+void Example_CallBack(void *CallBackRef, u32 IrqMask, int *NumBdPtr);
 
 #endif

@@ -13,6 +13,9 @@
 /* Definition   				 								*/
 /*--------------------------------------------------------------*/
 #define DEBUG 1
+#define NORM_NONCACHE 0x11DE2
+#define BD_SPACE_BASE 0x7000000
+#define BD_SPACE_HIGH 0x7080000
 
 //min size of buffer = 1920*1080*3 = 5EEC00
 
@@ -27,6 +30,9 @@
 #include "iic_utils.h"
 #include "hdmi.h"
 #include "xil_cache.h"
+#include "xaxicdma.h"
+#include "xaxidma.h"
+#include "xil_mmu.h"
 
 /*--------------------------------------------------------------*/
 /* Global Variables				 								*/
@@ -34,11 +40,15 @@
 extern XVprocSs VPSSInst;
 extern XIicPs IicInst;
 extern XAxiVdma VDMAInst;
+extern XAxiCdma	CDMA0Inst;
+
+XAxiDma_Bd CDMABdBuffer[GRAPHICS_DMA_BUFFERSIZE]__attribute__((aligned(XAXICDMA_BD_MINIMUM_ALIGNMENT)));
 
 int InitHdmi() {
 	IicConfig(HDMI_I2C_DEVICE_ID);
 	InitVPSS(VPSS_DEVICE_ID);
 	InitVDMA(VDMA_DEVICE_ID);
+	InitCDMA(CDMA_0_DEVICE_ID);
 
 	// Set the iic mux to the ADV7511
 	iic_write(&IicInst, 0x74, 0x2, 1);
@@ -176,7 +186,7 @@ int InitVDMA(unsigned int DeviceId) {
 	ReadCfg.VertSizeInput = VPSS_SCREEN_HEIGHT;
 	ReadCfg.HoriSizeInput = VPSS_SCREEN_WIDTH * 4;
 	ReadCfg.Stride = VPSS_SCREEN_WIDTH * 4;
-	ReadCfg.FrameDelay = 1;
+	ReadCfg.FrameDelay = 0;
 	ReadCfg.EnableCircularBuf = 0;
 	ReadCfg.EnableSync = 1;
 	ReadCfg.PointNum = 0;
@@ -219,4 +229,31 @@ int InitVDMA(unsigned int DeviceId) {
 
 	return XST_SUCCESS;
 }
+
+void InitCDMA(unsigned int DeviceId) {
+	XAxiCdma_Config *CfgPtr;
+
+	Xil_SetTlbAttributes((UINTPTR) &CDMABdBuffer[0], NORM_NONCACHE);
+
+	CfgPtr = XAxiCdma_LookupConfig(DeviceId);
+	XAxiCdma_CfgInitialize(&CDMA0Inst, CfgPtr, CfgPtr->BaseAddress);
+
+	//int BdCount = XAxiCdma_BdRingCntCalc(XAXICDMA_BD_MINIMUM_ALIGNMENT, sizeof(CDMABdBuffer), (UINTPTR) &CDMABdBuffer);
+	//XAxiCdma_BdRingCreate(&CDMA0Inst, &CDMABdBuffer[0], &CDMABdBuffer[0], XAXICDMA_BD_MINIMUM_ALIGNMENT, BdCount);
+
+	int BdCount = XAxiCdma_BdRingCntCalc(XAXICDMA_BD_MINIMUM_ALIGNMENT, BD_SPACE_HIGH - BD_SPACE_BASE + 1, (UINTPTR) BD_SPACE_BASE);
+	XAxiCdma_BdRingCreate(&CDMA0Inst, BD_SPACE_BASE, BD_SPACE_BASE, XAXICDMA_BD_MINIMUM_ALIGNMENT, BdCount);
+
+	XAxiCdma_IntrDisable(&CDMA0Inst, XAXICDMA_XR_IRQ_ALL_MASK);
+
+	XAxiCdma_Bd BdTemplate;
+	XAxiCdma_BdClear(&BdTemplate);
+
+	XAxiCdma_BdRingClone(&CDMA0Inst, &BdTemplate);
+
+	XAxiCdma_IntrEnable(&CDMA0Inst, XAXICDMA_XR_IRQ_ALL_MASK);
+
+}
+
+
 
