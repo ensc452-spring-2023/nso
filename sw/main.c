@@ -207,13 +207,15 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 			//xil_printf("LMB = %d, RMB = %d, X = %4d, Y = %4d\r\n", isLMB, isRMB, *changeX, *changeY);
 
 			qTDPollReceiver = USB_qTDActivateIn(
-					&usbWithHostInstance.HostConfig.QueueHead[1], false, 0);
+					&usbWithHostInstance.HostConfig.QueueHead[1], true, 0);
 			return;
 		}
 
 		isSetupComplete = USB_SetupDevice(&usbWithHostInstance, status);
 
 		if (isSetupComplete) {
+			qTDPollReceiver = USB_qTDActivateIn(
+					&usbWithHostInstance.HostConfig.QueueHead[1], true, 0);
 			// Enable Periodic Schedule
 			XUsbPs_SetBits(UsbInstancePtr, XUSBPS_CMD_OFFSET, XUSBPS_CMD_PSE_MASK);
 		}
@@ -273,9 +275,6 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 		return;
 	}
 
-//	USB_WriteSetupBuffer(buffSetup, 0, XUSBPS_REQ_SET_ADDRESS, 0xC, 0, 0); // Set Address 0x0C
-//	USB_WriteSetupBuffer(buffSetup, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0200, 0, 0x54); // Get Config
-
 	isSetupComplete = USB_SetupDevice(&usbWithHostInstance, status);
 
 	// Enable Async
@@ -317,7 +316,9 @@ int main(void) {
 	// Run the USB setup
 	usbStatus = USB_Setup(&INTCInst, &usbWithHostInstance,
 	XPAR_XUSBPS_0_DEVICE_ID, XPAR_XUSBPS_0_INTR, &UsbIntrHandler);
-	qTDPollReceiver = USB_SetupPolling(UsbInstancePtr);
+
+	//qTDPollReceiver = USB_SetupPolling(UsbInstancePtr);
+	USB_SetupPolling(UsbInstancePtr);
 
 	// Set Output Buffer as Non-Cacheable
 	for (int i = 0; i <= 896; i++) {
