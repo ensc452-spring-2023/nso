@@ -24,13 +24,10 @@
 #define CLOCK_HZ 1000
 
 /*--------------------------------------------------------------*/
-/* Functions Prototypes											*/
+/* Function Prototypes											*/
 /*--------------------------------------------------------------*/
 void game_tick();
 void play_game(HitObject *gameHitobjectsIn);
-void UpdateMouse(bool isLMBIn, bool isRMBIn, int dx, int dy);
-void UpdateTablet(int x, int y);
-int getMouseX();
-int getMouseY();
+void CheckObjectCollision(bool press, bool release);
 
 #endif

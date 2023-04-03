@@ -33,6 +33,7 @@
 #include "sd.h"
 #include "hdmi.h"
 #include "audio.h"
+#include "cursor.h"
 
 // Parameter definitions
 #define INTC_DEVICE_ID 			XPAR_PS7_SCUGIC_0_DEVICE_ID

@@ -19,6 +19,7 @@
 #include "graphics.h"
 #include "audio.h"
 #include "sd.h"
+#include "cursor.h"
 
 #define SHOW_FPS 0 // Show FPS
 
@@ -39,9 +40,6 @@ int maxCombo;
 /* Local Variables												*/
 /*--------------------------------------------------------------*/
 static int maxScore;
-
-static int mouseX = 0;
-static int mouseY = 0;
 
 static bool isPlaying = false;
 static bool isSliding = false;
@@ -349,7 +347,7 @@ static void RedrawGameplay()
 	// Combo
 	DrawCombo(combo, 0, VGA_HEIGHT - DIGIT_HEIGHT);
 
-	DisplayBufferAndMouse(mouseX, mouseY);
+	DisplayBufferAndMouse(getMouseX(), getMouseY());
 }
 
 
@@ -411,8 +409,8 @@ static void CheckSlider(HitObject *currentObjectPtr)
 	int x0 = (int)sliderFollowerX;
 	int y0 = (int)sliderFollowerY;
 
-	int dx = mouseX - x0;
-	int dy = mouseY - y0;
+	int dx = getMouseX() - x0;
+	int dy = getMouseY() - y0;
 
 	if (dx*dx + dy*dy > SLIDER_RAD_SQUARED) {
 		AddMaxScore(300);
@@ -463,8 +461,8 @@ static void CheckSlider(HitObject *currentObjectPtr)
 
 static void CheckSpin()
 {
-	int dx = mouseX - CENTER_X;
-	int dy = mouseY - CENTER_Y;
+	int dx = getMouseX() - CENTER_X;
+	int dy = getMouseY() - CENTER_Y;
 	prevQuadrant = quadrant;
 
 	if (dx >= 0 && dy > 0) {
@@ -550,28 +548,21 @@ static void CheckSpin()
 /*--------------------------------------------------------------*/
 /* Mouse Functions												*/
 /*--------------------------------------------------------------*/
-static bool isLMB = false;
-static bool isRMB = false;
-static bool wasLMB = false;
-static bool wasRMB = false;
 
 // raising edge flags to be handled/cleared during gameplay
 static bool isLMBPress = false;
-static bool isRMBPress = false;
 static bool isLMBRelease = false;
 
-int getMouseX()
+void CheckObjectCollision(bool press, bool release)
 {
-	return mouseX;
-}
+	if (!IsDisplayed(objectsDeleted)) {
+		return;
+	}
 
-int getMouseY()
-{
-	return mouseY;
-}
+	isLMBPress = press;
+	isLMBRelease = release;
+	HitObject *currentObjectPtr = &gameHitobjects[objectsDeleted];
 
-static void CheckCollision(HitObject *currentObjectPtr)
-{
 	if (isLMBPress) {
 		if (currentObjectPtr->type == OBJ_TYPE_SPINNER) {
 			isSpinning = true;
@@ -583,8 +574,8 @@ static void CheckCollision(HitObject *currentObjectPtr)
 			return;
 		}
 
-		int dx = mouseX - currentObjectPtr->x;
-		int dy = mouseY - currentObjectPtr->y;
+		int dx = getMouseX() - currentObjectPtr->x;
+		int dy = getMouseY() - currentObjectPtr->y;
 
 		if (dx * dx + dy * dy <= CIRCLE_RAD_SQUARED) {
 			JudgeTiming(time - currentObjectPtr->time);
@@ -617,58 +608,6 @@ static void CheckCollision(HitObject *currentObjectPtr)
 		isSpinning = false;
 		isLMBRelease = false;
 	}
-}
-
-void UpdateMouse(bool isLMBIn, bool isRMBIn, int dx, int dy)
-{
-	wasLMB = isLMB;
-	wasRMB = isRMB;
-	isLMB = isLMBIn;
-	isRMB = isRMBIn;
-	mouseX += dx;
-	mouseY += dy;
-
-	if (mouseX < 0)
-		mouseX = 0;
-	else if (mouseX > VGA_WIDTH - 1)
-		mouseX = VGA_WIDTH - 1;
-
-	if (mouseY < 0)
-		mouseY = 0;
-	else if (mouseY > VGA_HEIGHT - 1)
-		mouseY = VGA_HEIGHT - 1;
-
-	// If the next object is not displayed, skip check
-	if (!IsDisplayed(objectsDeleted)) {
-		return;
-	}
-
-	if (isLMB && !wasLMB) {
-		isLMBPress = true;
-		CheckCollision(&gameHitobjects[objectsDeleted]);
-	}
-
-	if (!isLMB && wasLMB) {
-		isLMBRelease = true;
-		CheckCollision(&gameHitobjects[objectsDeleted]);
-	}
-
-	if (isRMB && !wasRMB) {
-		isRMBPress = true;
-	}
-
-	//xil_printf("Cursor at (%d, %d)\r\n", mouseX, mouseY);
-}
-
-void UpdateTablet(int x, int y)
-{
-	// tablet max x:1DAE y:128C
-	// divide 4 max x:1899 y:1187
-	mouseX = x / 4;
-	mouseY = y / 4;
-
-	if (mouseY > VGA_HEIGHT - 1)
-		mouseY = VGA_HEIGHT - 1;
 }
 
 
@@ -715,7 +654,7 @@ void game_tick()
 	}
 
 	//if (isLMBPress) {
-	//	CheckCollision(&gameHitobjects[objectsDeleted]);
+	//	CheckObjectCollision(&gameHitobjects[objectsDeleted]);
 	//}
 
 	if (isSliding) {
@@ -742,7 +681,6 @@ static void game_init()
 	isSpinning = false;
 
 	isLMBPress = false;
-	isRMBPress = false;
 	isLMBRelease = false;
 
 	nextCurvePoint = NULL;
@@ -799,7 +737,7 @@ void play_game(HitObject *gameHitobjectsIn)
 				isScreenChanged = false;
 				RedrawGameplay();
 			} else {
-				DisplayBufferAndMouse(mouseX, mouseY);
+				DisplayBufferAndMouse(getMouseX(), getMouseY());
 			}
 
 #if SHOW_FPS == 1
@@ -812,7 +750,7 @@ void play_game(HitObject *gameHitobjectsIn)
 		isPlaying = false;
 
 		FillScreen(0x3F3F3F);
-		DisplayBufferAndMouse(mouseX, mouseY);
+		DisplayBufferAndMouse(getMouseX(), getMouseY());
 
 		//if (objectsDrawn != objectsDeleted)
 		//	xil_printf("ERROR: objectsDrawn:%d != objectsDeleted:%d\n", objectsDrawn, objectsDeleted);
