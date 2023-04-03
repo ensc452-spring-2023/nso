@@ -491,18 +491,18 @@ static void XUsbPs_QHInit(XUsbPs_HostConfig *HostCfgPtr)
 	for (QHNum = 0; QHNum < HostCfgPtr->NumQHs; ++QHNum) {
 
 
-		if (QHNum == 0) {			// Temp config: EPS=FS EpNum=0 Addr=0 H=1 (Head)
+		if (QHNum == 0) {			// Temp config: EPS=FS EpNum=0 Addr=0 H=1 (Head) DTC=1
 			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHHLPTR, 0x802);
-			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8008000);
-		} else if (QHNum == 1) {	// Temp config: EPS=FS EpNum=0 Addr=0 H=0 (Head)
+			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF800C000);
+		} else if (QHNum == 1) {	// Temp config: EPS=FS EpNum=0 Addr=0 H=0 (Head) DTC=1
 			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHHLPTR, 0x842);
-			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8000000);
-		} else if (QHNum == 2) {	// Temp config: EPS=FS EpNum=0 Addr=0 H=0 (Head)
+			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8004000);
+		} else if (QHNum == 2) {	// Temp config: EPS=FS EpNum=0 Addr=0 H=0 (Head) DTC=1
 			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHHLPTR, 0x8C2);
-			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8000000);
+			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8004000);
 		} else {
 			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHHLPTR, 0x802);
-			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8000000);
+			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8004000);
 		}
 
 		XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG1, 0x40000000);
