@@ -38,11 +38,18 @@ typedef struct RenderNode{
 
 #define DIGIT_WIDTH 47
 #define DIGIT_HEIGHT 71
+#define PERCENT_WIDTH 55
+#define PERCENT_HEIGHT 71
+#define COMBOX_WIDTH 35
+#define COMBOX_HEIGHT 37
 #define CIRCLE_WIDTH 155
 #define CIRCLE_HALF 77
-#define CIRCLE_RAD_SQUARED 4096 //64^2
-#define SPINNER_WIDTH 689
-#define SPINNER_HALF 344
+//#define SPINNER_WIDTH 689
+//#define SPINNER_HALF 344
+#define SPINNER_WIDTH 560
+#define SPINNER_HALF 280
+#define REVERSE_WIDTH 90
+#define REVERSE_HALF 45
 #define CENTER_X 960
 #define CENTER_Y 540
 #define RANKING_WIDTH 660
@@ -73,13 +80,19 @@ void DrawCircle(int x, int y);
 // Centered
 void DrawApproachCircle(int x, int y, int index);
 // Centered
-void DrawSpinner(int x, int y);
+void DrawReverse(int x, int y);
+// Centered
+void DrawSpinner(int x, int y, int index);
 // Top Left
 void DrawInt(unsigned int num, int length, int posX, int posY);
+// Top Left
+void DrawPercent(unsigned int num, int posX, int posY);
+// Top Left
+void DrawCombo(unsigned int num, int posX, int posY);
 
 void DrawMenu();
 void DrawGame(int score);
-void DrawStats(int score);
+void DrawStats(int score, int combo, int accuracy);
 
 void plotLine(int x0, int y0, int x1, int y1, int colour);
 void drawline(int x0, int y0, int x1, int y1, int colour);

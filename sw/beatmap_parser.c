@@ -24,6 +24,7 @@
 /* Global Variables												*/
 /*--------------------------------------------------------------*/
 extern int numberOfHitobjects;
+extern int ar; // osu AR * 10 to not use float
 extern double sliderSpeed;
 extern char audioFileName[maxAudioFilenameSize];
 
@@ -42,8 +43,11 @@ static void parse_difficulty()
 {
 	while (f_gets(buffer, PARSER_BUFF_SIZE, &beatmapFile) != NULL) {
 		char *setting = strtok(buffer, ":");
-		if (strcmp(setting, "SliderMultiplier") == 0) {
-			float tempMultiplier = atof(strtok(NULL, "\n"));
+
+		if (strcmp(setting, "ApproachRate") == 0) {
+			ar = (int)(atof(strtok(NULL, "\n")) * 10);
+		} else if (strcmp(setting, "SliderMultiplier") == 0) {
+			double tempMultiplier = atof(strtok(NULL, "\n"));
 			sliderMultiplier = (int)(tempMultiplier * 100 * PLAY_AREA_SCALER);
 			break;
 		}
@@ -132,7 +136,7 @@ static void parse_slider()
 
 static void print_object(HitObject object)
 {
-	if (object.newCombo) {
+	if (object.comboLabel == 1) {
 		xil_printf("New Combo >> ");
 	}
 
@@ -159,6 +163,8 @@ static void print_object(HitObject object)
 
 static void parse_objects()
 {
+	int combo = 1;
+
 	while (f_gets(buffer, PARSER_BUFF_SIZE, &beatmapFile) != NULL) {
 
 		u8 temp_type = 0xFF;
@@ -174,10 +180,11 @@ static void parse_objects()
 
 		//bit 2 - New Combo
 		if ((temp_type & 0b00000100) == 0b00000100) {
-			object.newCombo = 1;
+			combo = 1;
 		} else {
-			object.newCombo = 0;
+			combo++;
 		}
+		object.comboLabel = combo;
 
 		//bit 0 - Hit Circle
 		if ((temp_type & 0b00000001) == 0b00000001) {
@@ -226,7 +233,7 @@ static void parse_section()
 
 HitObject *parse_beatmaps(char *filename, FATFS FS_instance)
 {
-	gameHitobjects = (HitObject *)malloc(512 * sizeof(HitObject));
+	gameHitobjects = (HitObject *)malloc(1024 * sizeof(HitObject));
 
 
 

@@ -76,16 +76,6 @@ typedef struct {
 
 extern int *image_output_buffer;
 
-// Sprites
-int *imageMenu;
-int *imageBg;
-int *imageCircle;
-int *imageCircleOverlay;
-int *spinner;
-int *imageRanking;
-int *imageNum[10];
-int *approachCircle[NUM_A_CIRCLES];
-
 long time = 0;
 
 //----------------------------------------------------
@@ -152,19 +142,19 @@ void BTN_Intr_Handler(void *InstancePtr) {
 		DrawGame(score);
 	} else if (btn_value == BTN_RIGHT) {
 		screen = SCREEN_STAT;
-		DrawStats(score);
+		DrawStats(score, 0, 0);
 	} else if (btn_value == BTN_UP) {
 		score += 369;
 		if (screen == SCREEN_GAME)
 			DrawGame(score);
 		else if (screen == SCREEN_STAT)
-			DrawStats(score);
+			DrawStats(score, 0, 0);
 	} else if (btn_value == BTN_DOWN) {
 		score -= 144;
 		if (screen == SCREEN_GAME)
 			DrawGame(score);
 		else if (screen == SCREEN_STAT)
-			DrawStats(score);
+			DrawStats(score, 0, 0);
 	}
 
 	(void) XGpio_InterruptClear(&BTNInst, BTN_INT);
@@ -182,7 +172,7 @@ static void TimerIntrHandler(void *CallBackRef) {
 	XTtcPs_ClearInterruptStatus((XTtcPs * ) CallBackRef, Interrupt_staus);
 
 	time++;
-	GameTick();
+	game_tick();
 }
 
 int status = 0;
@@ -217,13 +207,15 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 			//xil_printf("LMB = %d, RMB = %d, X = %4d, Y = %4d\r\n", isLMB, isRMB, *changeX, *changeY);
 
 			qTDPollReceiver = USB_qTDActivateIn(
-					&usbWithHostInstance.HostConfig.QueueHead[1], false, 0);
+					&usbWithHostInstance.HostConfig.QueueHead[1], true, 0);
 			return;
 		}
 
-		isSetupComplete = USB_SetupDevice(UsbInstancePtr, status);
+		isSetupComplete = USB_SetupDevice(&usbWithHostInstance, status);
 
 		if (isSetupComplete) {
+			qTDPollReceiver = USB_qTDActivateIn(
+					&usbWithHostInstance.HostConfig.QueueHead[1], true, 0);
 			// Enable Periodic Schedule
 			XUsbPs_SetBits(UsbInstancePtr, XUSBPS_CMD_OFFSET, XUSBPS_CMD_PSE_MASK);
 		}
@@ -283,10 +275,7 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 		return;
 	}
 
-//	USB_WriteSetupBuffer(buffSetup, 0, XUSBPS_REQ_SET_ADDRESS, 0xC, 0, 0); // Set Address 0x0C
-//	USB_WriteSetupBuffer(buffSetup, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0200, 0, 0x54); // Get Config
-
-	isSetupComplete = USB_SetupDevice(UsbInstancePtr, status);
+	isSetupComplete = USB_SetupDevice(&usbWithHostInstance, status);
 
 	// Enable Async
 	XUsbPs_SetBits(UsbInstancePtr, XUSBPS_CMD_OFFSET, XUSBPS_CMD_ASE_MASK);
@@ -327,7 +316,9 @@ int main(void) {
 	// Run the USB setup
 	usbStatus = USB_Setup(&INTCInst, &usbWithHostInstance,
 	XPAR_XUSBPS_0_DEVICE_ID, XPAR_XUSBPS_0_INTR, &UsbIntrHandler);
-	qTDPollReceiver = USB_SetupPolling(UsbInstancePtr);
+
+	//qTDPollReceiver = USB_SetupPolling(UsbInstancePtr);
+	USB_SetupPolling(UsbInstancePtr);
 
 	// Set Output Buffer as Non-Cacheable
 	for (int i = 0; i <= 896; i++) {

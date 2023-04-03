@@ -16,14 +16,18 @@ int *image_buffer_pointer = (int *)VDMA_BUFFER_1;
 
 Node_t * masterRenderList;
 
-extern int *imageMenu;
-extern int *imageBg;
-extern int *imageCircle;
-extern int *imageCircleOverlay;
-extern int *spinner;
-extern int *imageRanking;
-extern int *imageNum[10];
-extern int *approachCircle[NUM_A_CIRCLES];
+// Loaded from sd card
+int *imageMenu;
+int *imageBg;
+int *imageCircle;
+int *imageCircleOverlay;
+int *spinner[2];
+int *imageRanking;
+int *imageNum[10];
+int *percent;
+int *comboX;
+int *approachCircle[NUM_A_CIRCLES];
+int *reverse;
 
 void SetPixel(int *pixelAddr, int colour) {
 	*pixelAddr = colour;
@@ -188,11 +192,22 @@ void DrawApproachCircle(int x, int y, int index) {
 	DrawSprite(approachCircle[index], A_CIRCLE_WIDTH, A_CIRCLE_WIDTH, spriteX, spriteY);
 }
 
-void DrawSpinner(int x, int y) {
+void DrawReverse(int x, int y)
+{
+	int spriteX = x - REVERSE_HALF;
+	int spriteY = y - REVERSE_HALF;
+
+	DrawSprite(reverse, REVERSE_WIDTH, REVERSE_WIDTH, spriteX, spriteY);
+}
+
+void DrawSpinner(int x, int y, int index) {
 	int spriteX = x - SPINNER_HALF;
 	int spriteY = y - SPINNER_HALF;
 
-	DrawSprite(spinner, SPINNER_WIDTH, SPINNER_WIDTH, spriteX, spriteY);
+	if (index == 0)
+		DrawSprite(spinner[0], SPINNER_WIDTH, SPINNER_WIDTH, spriteX, spriteY);
+	else
+		DrawSprite(spinner[1], SPINNER_WIDTH, SPINNER_WIDTH, spriteX, spriteY);
 }
 
 void DrawInt(unsigned int num, int length, int posX, int posY) {
@@ -205,6 +220,36 @@ void DrawInt(unsigned int num, int length, int posX, int posY) {
 		num /= 10;
 		posX -= DIGIT_WIDTH;
 	}
+}
+
+void DrawPercent(unsigned int num, int posX, int posY)
+{
+	if (num > 99)
+		DrawInt(num, 3, posX, posY);
+	else if (num > 9)
+		DrawInt(num, 2, posX + DIGIT_WIDTH, posY);
+	else if (num >= 0)
+		DrawInt(num, 1, posX + 2 * DIGIT_WIDTH, posY);
+
+	DrawSprite(percent, PERCENT_WIDTH, PERCENT_HEIGHT, posX + 3 * DIGIT_WIDTH, posY);
+}
+
+void DrawCombo(unsigned int num, int posX, int posY)
+{
+	int digits = 0;
+
+	if (num > 999)
+		digits = 4;
+	else if (num > 99)
+		digits = 3;
+	else if (num > 9)
+		digits = 2;
+	else if (num >= 0)
+		digits = 1;
+
+	DrawInt(num, digits, posX, posY);
+	DrawSprite(comboX, COMBOX_WIDTH, COMBOX_HEIGHT,
+			posX + digits * DIGIT_WIDTH, posY + 25);
 }
 
 void DrawMenu() {
@@ -222,12 +267,12 @@ void DrawGame(int score) {
 	DisplayBuffer();
 }
 
-void DrawStats(int score) {
+void DrawStats(int score, int combo, int accuracy) {
 	memcpy(image_buffer_pointer, imageBg, NUM_BYTES_BUFFER);
 	DrawSprite(imageRanking, RANKING_WIDTH, RANKING_HEIGHT, 0, 200);
 	DrawInt(score, 7, 150, 210);
-	DrawInt(0, 3, 20, 635);
-	DrawInt(0, 3, 310, 635);
+	DrawCombo(combo, 20, 635);
+	DrawPercent(accuracy, 260, 635);
 	DisplayBuffer();
 }
 

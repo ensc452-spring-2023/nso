@@ -122,7 +122,7 @@ XUsbPs_qTD *USB_SetupPolling(UsbWithHost *usbWithHostInstancePtr) {
 
 	XUsbPs_dQHFlushCache(pollQH->pQH);
 
-	XUsbPs_qTD *qTDReceiver = USB_qTDActivateIn(pollQH, true, 0);
+	//XUsbPs_qTD *qTDReceiver = USB_qTDActivateIn(pollQH, true, 0);
 
 	// Set Frame List to 8
 	XUsbPs_SetBits(UsbInstancePtr, XUSBPS_CMD_OFFSET, XUSBPS_CMD_FS01_MASK | XUSBPS_CMD_FS2_MASK);
@@ -138,7 +138,7 @@ XUsbPs_qTD *USB_SetupPolling(UsbWithHost *usbWithHostInstancePtr) {
 	Xil_DCacheFlushRange((unsigned int)frameListPtr, sizeof(u32) * 8);
 	// Set Frame List Address
 	XUsbPs_WriteReg(UsbInstancePtr->Config.BaseAddress, XUSBPS_LISTBASE_OFFSET, (u32)frameListPtr);
-	return qTDReceiver;
+	//return qTDReceiver;
 }
 
 static int strNumManu = 0;
@@ -223,6 +223,9 @@ bool USB_SetupDevice(UsbWithHost *usbWithHostInstancePtr, int status) {
 		xil_printf("Setup successful!\r\n");
 		isSetup = true;
 	}
+
+	//	USB_SendSetupPacket(setupQH, false, 0, XUSBPS_REQ_SET_ADDRESS, 0xC, 0, 0); // Set Address 0x0C
+	//	USB_SendSetupPacket(setupQH, false, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0200, 0, 0x09); // Get Config
 
 	XUsbPs_dQHFlushCache(setupQH->pQH);
 	return isSetup;
@@ -491,18 +494,18 @@ static void XUsbPs_QHInit(XUsbPs_HostConfig *HostCfgPtr)
 	for (QHNum = 0; QHNum < HostCfgPtr->NumQHs; ++QHNum) {
 
 
-		if (QHNum == 0) {			// Temp config: EPS=FS EpNum=0 Addr=0 H=1 (Head)
+		if (QHNum == 0) {			// Temp config: EPS=FS EpNum=0 Addr=0 H=1 (Head) DTC=1
 			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHHLPTR, 0x802);
-			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8008000);
-		} else if (QHNum == 1) {	// Temp config: EPS=FS EpNum=0 Addr=0 H=0 (Head)
+			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF800C000);
+		} else if (QHNum == 1) {	// Temp config: EPS=FS EpNum=0 Addr=0 H=0 (Head) DTC=0
 			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHHLPTR, 0x842);
 			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8000000);
-		} else if (QHNum == 2) {	// Temp config: EPS=FS EpNum=0 Addr=0 H=0 (Head)
+		} else if (QHNum == 2) {	// Temp config: EPS=FS EpNum=0 Addr=0 H=0 (Head) DTC=0
 			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHHLPTR, 0x8C2);
-			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8000000);
+			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8004000);
 		} else {
 			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHHLPTR, 0x802);
-			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8000000);
+			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8004000);
 		}
 
 		XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG1, 0x40000000);
