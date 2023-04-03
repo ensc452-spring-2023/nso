@@ -19,5 +19,7 @@ int getMouseX();
 int getMouseY();
 void UpdateMouse(bool isLMBIn, bool isRMBIn, int dx, int dy);
 void UpdateTablet(int x, int y);
+// Checks if mouse is in a rectangle anchored at the top left
+bool RectCollision(int rectX, int rectY, int width, int height);
 
 #endif

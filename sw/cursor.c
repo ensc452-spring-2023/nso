@@ -16,12 +16,13 @@
 #include "cursor.h"
 #include "graphics.h"
 #include "game_logic.h"
+#include "game_menu.h"
 
 /*--------------------------------------------------------------*/
 /* Local Variables												*/
 /*--------------------------------------------------------------*/
-static int x = 0;
-static int y = 0;
+static int mouseX = 100;
+static int mouseY = 100;
 
 static bool isLMB = false;
 static bool isRMB = false;
@@ -34,12 +35,12 @@ static bool wasRMB = false;
 
 int getMouseX()
 {
-	return x;
+	return mouseX;
 }
 
 int getMouseY()
 {
-	return y;
+	return mouseY;
 }
 
 void UpdateMouse(bool isLMBIn, bool isRMBIn, int dx, int dy)
@@ -48,37 +49,61 @@ void UpdateMouse(bool isLMBIn, bool isRMBIn, int dx, int dy)
 	wasRMB = isRMB;
 	isLMB = isLMBIn;
 	isRMB = isRMBIn;
-	x += dx;
-	y += dy;
+	mouseX += dx;
+	mouseY += dy;
 
-	if (x < 0)
-		x = 0;
-	else if (x > VGA_WIDTH - 1)
-		x = VGA_WIDTH - 1;
+	if (mouseX < CURSOR_HALF)
+		mouseX = CURSOR_HALF;
+	else if (mouseX > VGA_WIDTH - CURSOR_HALF - 1)
+		mouseX = VGA_WIDTH - CURSOR_HALF - 1;
 
-	if (y < 0)
-		y = 0;
-	else if (y > VGA_HEIGHT - 1)
-		y = VGA_HEIGHT - 1;
+	if (mouseY < CURSOR_HALF)
+		mouseY = CURSOR_HALF;
+	else if (mouseY > VGA_HEIGHT - CURSOR_HALF - 1)
+		mouseY = VGA_HEIGHT - CURSOR_HALF - 1;
 
 	if (isLMB && !wasLMB) {
-		CheckObjectCollision(true, false);
+		menu_collision(true, false);
 	}
 
 	if (!isLMB && wasLMB) {
-		CheckObjectCollision(false, true);
+		menu_collision(false, true);
 	}
 
-	//xil_printf("Cursor at (%d, %d)\r\n", x, y);
+	//xil_printf("Cursor at (%d, %d)\r\n", mouseX, mouseY);
 }
 
 void UpdateTablet(int x, int y)
 {
 	// tablet max x:1DAE y:128C
 	// divide 4 max x:1899 y:1187
-	x = x / 4;
-	y = y / 4;
+	mouseX = x / 4;
+	mouseY = y / 4;
 
-	if (y > VGA_HEIGHT - 1)
-		y = VGA_HEIGHT - 1;
+	if (mouseX < CURSOR_HALF)
+		mouseX = CURSOR_HALF;
+	else if (mouseX > VGA_WIDTH - CURSOR_HALF)
+		mouseX = VGA_WIDTH - CURSOR_HALF;
+
+	if (mouseY < CURSOR_HALF)
+		mouseY = CURSOR_HALF;
+	else if (mouseY > VGA_HEIGHT - CURSOR_HALF)
+		mouseY = VGA_HEIGHT - CURSOR_HALF;
+}
+
+bool RectCollision(int rectX, int rectY, int width, int height)
+{
+	if (mouseX < rectX)
+		return false;
+
+	if (mouseY < rectY)
+		return false;
+
+	if (mouseX > rectX + width)
+		return false;
+
+	if (mouseY > rectY + height)
+		return false;
+
+	return true;
 }

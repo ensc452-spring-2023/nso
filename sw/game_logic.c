@@ -21,7 +21,7 @@
 #include "sd.h"
 #include "cursor.h"
 
-#define SHOW_FPS 0 // Show FPS
+#define SHOW_FPS 1 // Show FPS
 
 /*--------------------------------------------------------------*/
 /* Global Variables												*/
@@ -30,7 +30,7 @@ extern long time;
 extern int numberOfHitobjects;
 int ar = 0;
 int volume = 10;
-int beatoffset = 0;
+int beatoffset = 250;
 
 int score;
 int accuracy; // = score / maxScore
@@ -617,7 +617,7 @@ void CheckObjectCollision(bool press, bool release)
  * Processes the game logic
 /-------------------------------------------*/
 char audioFileName[maxAudioFilenameSize];
-static int songLength;
+int songLength;
 
 void game_tick()
 {
@@ -694,7 +694,7 @@ static void game_init()
 		drawnObjectIndices[i] = -1;
 	}
 
-	time = -1200 + beatoffset;
+	time = -1500 + beatoffset;
 	maxScore = 0;
 	score = 0;
 	maxCombo = 0;
@@ -715,54 +715,40 @@ void play_game(HitObject *gameHitobjectsIn)
 
 	gameHitobjects = gameHitobjectsIn;
 
-	char input = ' ';
 	songLength = loadWAVEfileintoMemory(audioFileName, (u32 *)0x0B000000);
-	xil_printf("Ready? (y)\(n)\r\n");
 
-	scanf(" %c", &input);
+	game_init();
+	RedrawGameplay();
 
-	switch (input)
+	while (objectsDeleted < numberOfHitobjects && isPlaying)
 	{
-	case 'y':
-		game_init();
+#if SHOW_FPS == 1
+		int startTime = time;
+#endif
+
+		//if (isScreenChanged) {
+		//	isScreenChanged = false;
+		//	RedrawGameplay();
+		//} else {
+		//	DisplayBufferAndMouse(getMouseX(), getMouseY());
+		//}
+
 		RedrawGameplay();
 
-		while (objectsDeleted < numberOfHitobjects && isPlaying)
-		{
 #if SHOW_FPS == 1
-			int startTime = time;
+		int duration = (time - startTime) * 1000 / CLOCK_HZ;
+		int fps = 1000 / duration;
+		xil_printf("					Draw Time:%3dms FPS:%3d\r\n", duration, fps);
 #endif
-
-			if (isScreenChanged) {
-				isScreenChanged = false;
-				RedrawGameplay();
-			} else {
-				DisplayBufferAndMouse(getMouseX(), getMouseY());
-			}
-
-#if SHOW_FPS == 1
-			int duration = (time - startTime) * 1000 / CLOCK_HZ;
-			int fps = 1000 / duration;
-			xil_printf("					Draw Time:%3dms FPS:%3d\r\n", duration, fps);
-#endif
-		}
-
-		isPlaying = false;
-
-		FillScreen(0x3F3F3F);
-		DisplayBufferAndMouse(getMouseX(), getMouseY());
-
-		//if (objectsDrawn != objectsDeleted)
-		//	xil_printf("ERROR: objectsDrawn:%d != objectsDeleted:%d\n", objectsDrawn, objectsDeleted);
-
-		AudioDMAReset();
-
-		break;
-	case 'n':
-		xil_printf("Quitted!\r\n");
-		break;
-	default:
-		play_game(gameHitobjects);
-		break;
 	}
+
+	isPlaying = false;
+
+	FillScreen(0x3F3F3F);
+	DisplayBufferAndMouse(getMouseX(), getMouseY());
+
+	//if (objectsDrawn != objectsDeleted)
+	//	xil_printf("ERROR: objectsDrawn:%d != objectsDeleted:%d\n", objectsDrawn, objectsDeleted);
+
+	AudioDMAReset();
 }

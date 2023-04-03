@@ -50,6 +50,8 @@ typedef struct RenderNode{
 #define SPINNER_HALF 280
 #define REVERSE_WIDTH 90
 #define REVERSE_HALF 45
+#define CURSOR_WIDTH 63
+#define CURSOR_HALF 31
 #define CENTER_X 960
 #define CENTER_Y 540
 #define RANKING_WIDTH 660
@@ -91,8 +93,9 @@ void DrawPercent(unsigned int num, int posX, int posY);
 void DrawCombo(unsigned int num, int posX, int posY);
 
 void DrawMenu();
-void DrawGame(int score);
-void DrawStats(int score, int combo, int accuracy);
+void DrawScores(int score, int combo, int accuracy);
+void DrawSettings(int volume, int offset);
+void DrawSongs();
 
 void plotLine(int x0, int y0, int x1, int y1, int colour);
 void drawline(int x0, int y0, int x1, int y1, int colour);

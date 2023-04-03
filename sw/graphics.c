@@ -18,11 +18,13 @@ Node_t * masterRenderList;
 
 // Loaded from sd card
 int *imageMenu;
-int *imageBg;
+int *bgScores;
+int *bgSettings;
+int *bgSongs;
 int *imageCircle;
 int *imageCircleOverlay;
+int *cursor;
 int *spinner[2];
-int *imageRanking;
 int *imageNum[10];
 int *percent;
 int *comboX;
@@ -48,14 +50,16 @@ void DrawMouse(int x, int y) {
 //		*(image_mouse_buffer + x+1 + (y+1) * VGA_WIDTH) = mouseColour;
 //	}
 
-	//Performance
-	*(image_output_buffer + x + y * VGA_WIDTH) = mouseColour;
-	*(image_output_buffer + x + (y+1) * VGA_WIDTH) = mouseColour;
+	//Performance 2x2 cursor
+	//*(image_output_buffer + x + y * VGA_WIDTH) = mouseColour;
+	//*(image_output_buffer + x + (y+1) * VGA_WIDTH) = mouseColour;
 
-	if (x != VGA_WIDTH - 1) {
-		*(image_output_buffer + x+1 + y * VGA_WIDTH) = mouseColour;
-		*(image_output_buffer + x+1 + (y+1) * VGA_WIDTH) = mouseColour;
-	}
+	//if (x != VGA_WIDTH - 1) {
+	//	*(image_output_buffer + x+1 + y * VGA_WIDTH) = mouseColour;
+	//	*(image_output_buffer + x+1 + (y+1) * VGA_WIDTH) = mouseColour;
+	//}
+
+	DrawSprite(cursor, CURSOR_WIDTH, CURSOR_WIDTH, x - CURSOR_HALF, y - CURSOR_HALF);
 }
 
 void DisplayBufferAndMouse(int x, int y) {
@@ -63,8 +67,8 @@ void DisplayBufferAndMouse(int x, int y) {
 //	memcpy(image_output_buffer, image_mouse_buffer, NUM_BYTES_BUFFER);
 
 	//Performance
-	DisplayBuffer();
 	DrawMouse(x, y);
+	DisplayBuffer();
 }
 
 void FillScreen(int colour) {
@@ -254,26 +258,26 @@ void DrawCombo(unsigned int num, int posX, int posY)
 
 void DrawMenu() {
 	memcpy(image_buffer_pointer, imageMenu, NUM_BYTES_BUFFER);
-	DisplayBuffer();
 }
 
-void DrawGame(int score) {
-	memcpy(image_buffer_pointer, imageBg, NUM_BYTES_BUFFER);
-	DrawInt(score, 7, 951, 0);
-	DrawSprite(imageCircle, CIRCLE_WIDTH, CIRCLE_WIDTH, 400, 500);
-	DrawSprite(imageCircleOverlay, CIRCLE_WIDTH, CIRCLE_WIDTH, 400, 500);
-	DrawSprite(imageCircle, CIRCLE_WIDTH, CIRCLE_WIDTH, 700, 250);
-	DrawSprite(imageCircleOverlay, CIRCLE_WIDTH, CIRCLE_WIDTH, 700, 250);
-	DisplayBuffer();
+void DrawScores(int score, int combo, int accuracy) {
+	memcpy(image_buffer_pointer, bgScores, NUM_BYTES_BUFFER);
+	//DrawSprite(imageRanking, RANKING_WIDTH, RANKING_HEIGHT, 0, 200); // 93, 258
+	DrawInt(score, 7, 243, 268);
+	DrawCombo(combo, 113, 693);
+	DrawPercent(accuracy, 353, 693);
 }
 
-void DrawStats(int score, int combo, int accuracy) {
-	memcpy(image_buffer_pointer, imageBg, NUM_BYTES_BUFFER);
-	DrawSprite(imageRanking, RANKING_WIDTH, RANKING_HEIGHT, 0, 200);
-	DrawInt(score, 7, 150, 210);
-	DrawCombo(combo, 20, 635);
-	DrawPercent(accuracy, 260, 635);
-	DisplayBuffer();
+void DrawSettings(int volume, int offset)
+{
+	memcpy(image_buffer_pointer, bgSettings, NUM_BYTES_BUFFER);
+	DrawInt(volume, 2, 913, 350);
+	DrawInt(offset, 3, 889, 680);
+}
+
+void DrawSongs()
+{
+	memcpy(image_buffer_pointer, bgSongs, NUM_BYTES_BUFFER);
 }
 
 void plotLine(int x0, int y0, int x1, int y1, int colour) {

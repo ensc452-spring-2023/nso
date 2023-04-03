@@ -19,6 +19,7 @@
 #include "game_logic.h"
 #include "xil_printf.h"
 #include "graphics.h"
+#include "cursor.h"
 
 /*--------------------------------------------------------------*/
 /* Definitions					 								*/
@@ -38,8 +39,15 @@ extern int accuracy;
 extern int score;
 extern int maxCombo;
 
+static bool isPress = false;
+static bool isRelease = false;
 static HitObject *gameHitobjects;
-
+static int currScreen = 0;
+#define MENU		1
+#define SONGS		2
+#define GAME		3
+#define SCORE		4
+#define SETTINGS	5
 
 /*-------------------------------------------/
  / void main_menu()
@@ -48,30 +56,18 @@ static HitObject *gameHitobjects;
  /-------------------------------------------*/
 void main_menu()
 {
-	DrawMenu();
-	char input = ' ';
+	currScreen = MENU;
 
 	while (true) {
-		xil_printf("#################\n\r");
-		xil_printf("Play \t (p)\n\r");
-		xil_printf("Settings (s)\n\r");
-		xil_printf("Quit \t (q)\n\r");
-		xil_printf("#################\n\r");
+		DrawMenu();
+		DisplayBufferAndMouse(getMouseX(), getMouseY());
 
-		scanf(" %c", &input);
-
-		switch (input) {
-		case 'p':
-			song_select_menu();
-			break;
-		case 's':
-			settings_menu();
-			break;
-		case 'q':
-			xil_printf("EXITING APPLICATION\r\n");
-			return;
-		default:
-			break;
+		if (isPress) {
+			isPress = false;
+			if (RectCollision(1050, 350, 550, 150))
+				song_select_menu();
+			else if (RectCollision(1050, 565, 550, 150))
+				settings_menu();
 		}
 	}
 }
@@ -85,6 +81,8 @@ void main_menu()
  /-------------------------------------------*/
 void song_select_menu()
 {
+	currScreen = SONGS;
+
 	char input = ' ';
 	DIR dir;
 	FRESULT result;
@@ -122,54 +120,49 @@ void song_select_menu()
 		return;
 	}
 
+	xil_printf("Select Song\n\r");
+
+	for (int i = 0; i < filesNum; ++i) {
+		xil_printf("(%d)\t%s\n\r", i + 1, files[i]);
+	}
+
 	while (true) {
-		xil_printf("Select Song\n\r");
+		DrawSongs();
+		DisplayBufferAndMouse(getMouseX(), getMouseY());
 
-		for (int i = 0; i < filesNum; ++i) {
-			xil_printf("(%d)\t%s\n\r", i + 1, files[i]);
-		}
-
-		xil_printf("(b)\tBack\n\r");
-		xil_printf("#################\n\r");
-
-		scanf(" %c", &input);
 		int selection = 0;
 
-		switch (input) {
-		case '1':
-			selection = 1;
-			break;
-		case '2':
-			selection = 2;
-			break;
-		case '3':
-			selection = 3;
-			break;
-		case '4':
-			selection = 4;
-			break;
-		case '5':
-			selection = 5;
-			break;
-		case 'b':
-			return;
-		default:
-			continue;
-		}
+		if (isPress) {
+			if (RectCollision(460, 25, 1000, 150))
+				selection = 1;
+			else if (RectCollision(460, 225, 1000, 150))
+				selection = 2;
+			else if (RectCollision(460, 425, 1000, 150))
+				selection = 3;
+			else if (RectCollision(460, 625, 1000, 150))
+				selection = 4;
+			else if (RectCollision(460, 825, 1000, 150))
+				selection = 5;
+			else if (RectCollision(0, 0, 300, 150))
+				return;
+			else
+				continue;
 
-		if (selection < 1 || selection > filesNum) {
-			xil_printf("Invalid Choice.\r\n");
-			return;
-		} else {
-			xil_printf("Selected Song %d\r\n", selection);
-		}
-		gameHitobjects = parse_beatmaps(files[selection - 1], FS_instance);
+			if (selection < 1 || selection > filesNum) {
+				xil_printf("Invalid Choice.\r\n");
+				return;
+			} else {
+				xil_printf("Selected Song %d\r\n", selection);
+			}
+			gameHitobjects = parse_beatmaps(files[selection - 1], FS_instance);
 
-		while (true) {
-			play_game(gameHitobjects);
+			while (true) {
+				currScreen = GAME;
+				play_game(gameHitobjects);
 
-			if (highscore_menu() == 0)
-				break;
+				if (highscore_menu() == 0)
+					break;
+			}
 		}
 	}
 }
@@ -183,43 +176,29 @@ void song_select_menu()
  /-------------------------------------------*/
 void settings_menu()
 {
-	char input = ' ';
-
-	
+	currScreen = SETTINGS;
 
 	while (true) {
-		xil_printf("Volume:%d\t\t(1)(2)\n\r", volume);
-		xil_printf("Music Offset:%dms\t(3)(4)\n\r", beatoffset);
-		xil_printf("Back\t\t\t(b)\n\r");
-		xil_printf("#################\n\r");
+		DrawSettings(volume, beatoffset);
+		DisplayBufferAndMouse(getMouseX(), getMouseY());
 
-		scanf(" %c", &input);
-
-		switch (input) {
-		case '1':
-			if (volume < 10) {
-				volume++;
+		if (isPress) {
+			isPress = false;
+			if (RectCollision(1160, 350, 200, 100)) {
+				if (volume < 10)
+					volume++;
+			} else if (RectCollision(560, 350, 200, 100)) {
+				if (volume > 0)
+					volume--;
+			} else if (RectCollision(1160, 670, 200, 100)) {
+				if (beatoffset < 500)
+					beatoffset += 5;
+			} else if (RectCollision(560, 670, 200, 100)) {
+				if (beatoffset > 0)
+					beatoffset -= 5;
+			} else if (RectCollision(0, 0, 300, 150)) {
+				return;
 			}
-			break;
-		case '2':
-			if (volume > 0) {
-				volume--;
-			}
-			break;
-		case '3':
-			if (beatoffset < 100) {
-				beatoffset += 5;
-			}
-			break;
-		case '4':
-			if (beatoffset > -100) {
-				beatoffset -= 5;
-			}
-			break;
-		case 'b':
-			return;
-		default:
-			break;
 		}
 	}
 }
@@ -231,25 +210,46 @@ void settings_menu()
  /-------------------------------------------*/
 int highscore_menu()
 {
-	DrawStats(score, maxCombo, accuracy);
-	char input = ' ';
+	currScreen = SCORE;
+	DrawScores(score, maxCombo, accuracy);
 
 	while (true) {
-		xil_printf("Play again? \t(p)\n\r");
-		xil_printf("Song Select \t(b)\n\r");
-		xil_printf("#################\n\r");
+		DrawScores(score, maxCombo, accuracy);
+		DisplayBufferAndMouse(getMouseX(), getMouseY());
 
-		scanf(" %c", &input);
-
-		switch (input) {
-		case 'p':
-			return 1;
-			break;
-		case 'b':
-			return 0;
-			break;
-		default:
-			break;
+		if (isPress) {
+			isPress = false;
+			if (RectCollision(0, 930, 500, 150))
+				return 1;
+			if (RectCollision(0, 0, 300, 150))
+				return 0;
 		}
+	}
+}
+
+void menu_collision(bool press, bool release)
+{
+	if (press)
+		isPress = true;
+
+	if (release)
+		isRelease = true;
+
+	switch (currScreen) {
+	case MENU:
+
+		break;
+	case SONGS:
+
+		break;
+	case GAME:
+		CheckObjectCollision(press, release);
+		break;
+	case SCORE:
+
+		break;
+	case SETTINGS:
+
+		break;
 	}
 }

@@ -26,11 +26,13 @@
 /*--------------------------------------------------------------*/
 extern FATFS FS_instance;
 extern int *imageMenu;
-extern int *imageBg;
+extern int *bgScores;
+extern int *bgSettings;
+extern int *bgSongs;
 extern int *imageCircle;
 extern int *imageCircleOverlay;
+extern int *cursor;
 extern int *spinner[2];
-extern int *imageRanking;
 extern int *imageNum[10];
 extern int *percent;
 extern int *comboX;
@@ -102,6 +104,7 @@ void loadSprites() {
 
 	loadFileFromSD("Sprites\\hc.bin", &imageCircle);
 	loadFileFromSD("Sprites\\hco.bin", &imageCircleOverlay);
+	loadFileFromSD("Sprites\\cursor.bin", &cursor);
 	loadFileFromSD("Sprites\\spin0.bin", &spinner[0]);
 	loadFileFromSD("Sprites\\spin1.bin", &spinner[1]);
 	loadFileFromSD("Sprites\\num0.bin", &imageNum[0]);
@@ -114,9 +117,10 @@ void loadSprites() {
 	loadFileFromSD("Sprites\\num7.bin", &imageNum[7]);
 	loadFileFromSD("Sprites\\num8.bin", &imageNum[8]);
 	loadFileFromSD("Sprites\\num9.bin", &imageNum[9]);
-	loadFileFromSD("Sprites\\rank.bin", &imageRanking);
 	loadFileFromSD("Sprites\\menu.bin", &imageMenu);
-	loadFileFromSD("Sprites\\bgG.bin", &imageBg);
+	loadFileFromSD("Sprites\\scores.bin", &bgScores);
+	loadFileFromSD("Sprites\\settings.bin", &bgSettings);
+	loadFileFromSD("Sprites\\songs.bin", &bgSongs);
 	loadFileFromSD("Sprites\\percent.bin", &percent);
 	loadFileFromSD("Sprites\\x.bin", &comboX);
 	loadFileFromSD("Sprites\\reverse.bin", &reverse);
