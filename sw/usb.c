@@ -502,10 +502,10 @@ static void XUsbPs_QHInit(XUsbPs_HostConfig *HostCfgPtr)
 			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8000000);
 		} else if (QHNum == 2) {	// Temp config: EPS=FS EpNum=0 Addr=0 H=0 (Head) DTC=0
 			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHHLPTR, 0x8C2);
-			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8000000);
+			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8004000);
 		} else {
 			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHHLPTR, 0x802);
-			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8000000);
+			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF8004000);
 		}
 
 		XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG1, 0x40000000);
