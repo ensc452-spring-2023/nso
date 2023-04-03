@@ -660,6 +660,17 @@ void UpdateMouse(bool isLMBIn, bool isRMBIn, int dx, int dy)
 	//xil_printf("Cursor at (%d, %d)\r\n", mouseX, mouseY);
 }
 
+void UpdateTablet(int x, int y)
+{
+	// tablet max x:1DAE y:128C
+	// divide 4 max x:1899 y:1187
+	mouseX = x / 4;
+	mouseY = y / 4;
+
+	if (mouseY > VGA_HEIGHT - 1)
+		mouseY = VGA_HEIGHT - 1;
+}
+
 
 /*-------------------------------------------/
  * game_tick()

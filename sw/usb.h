@@ -23,6 +23,9 @@
 /*--------------------------------------------------------------*/
 /* Definitions													*/
 /*--------------------------------------------------------------*/
+#define DEVICE_MOUSE	1
+#define DEVICE_TABLET	2
+
 #define XUSBPS_REQ_GET_DESCRIPTOR	0x06
 #define XUSBPS_REQ_SET_CONFIGURATION	0x09
 #define POLLING_MS 8 // Polling rate in ms (1, 2, 4, 8)
@@ -128,8 +131,8 @@ typedef struct {
 	XUsbPs_HostConfig HostConfig;
 } UsbWithHost;
 
-bool USB_SetupDevice(UsbWithHost *usbWithHostInstancePtr, int status);
-XUsbPs_qTD *USB_SetupPolling(UsbWithHost *usbWithHostInstancePtr);
+int USB_SetupDevice(UsbWithHost *usbWithHostInstancePtr, int status);
+void USB_SetupPolling(UsbWithHost *usbWithHostInstancePtr);
 XUsbPs_qTD* USB_qTDActivateIn(XUsbPs_QH *QueueHead, bool isIOC, bool dataNum);
 
 // from xusbps_intr_example.c
