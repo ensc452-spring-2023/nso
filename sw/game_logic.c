@@ -633,7 +633,10 @@ void game_tick()
 	}
 
 	if (time == 0)
+	{
 		AudioDMATransmitSong((u32 *)0x0B000000, songLength);
+	}
+
 
 	if ((time >= gameHitobjects[objectsDrawn].time - AC_MS * NUM_A_CIRCLES) && objectsDrawn < numberOfHitobjects) {
 		AddObject();
@@ -676,6 +679,8 @@ void game_tick()
 // Resets gameplay variables to defaults
 static void game_init()
 {
+	AudioDMASetup();
+
 	isPlaying = true;
 	isSliding = false;
 	isSpinning = false;
