@@ -87,13 +87,6 @@ static int IntcInitFunction(u16 DeviceId, XGpio *GpioInstancePtr);
 static void TimerIntrHandler(void *CallBackRef);
 void VBlankIntrHandler(void *InstancePtr);
 
-static unsigned int score = 0;
-
-#define SCREEN_MENU 0
-#define SCREEN_GAME 1
-#define SCREEN_STAT 2
-static int screen = SCREEN_MENU;
-
 void initTimer() {
 	XTtcPs_Config *TMRConfigPtr; //timer config
 
@@ -331,14 +324,9 @@ int main(void) {
 	InitHdmi();
 	InitAudio();
 
-	screen = SCREEN_MENU;
-	DrawMenu();
-
 	//XAxiVdma_StartParking(&VDMAInst, 0, XAXIVDMA_READ);
 
-	while (1) {
-		main_menu();
-	}
+	main_menu();
 
 	return 0;
 }
