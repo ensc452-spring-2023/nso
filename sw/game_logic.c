@@ -160,7 +160,7 @@ static void DeleteObject(bool hit)
 	if (gameHitobjects[objectsDeleted].type == OBJ_TYPE_CIRCLE) {
 		maxScore += 300 - currObjMaxScore;
 	} else if (gameHitobjects[objectsDeleted].type == OBJ_TYPE_SLIDER) {
-		maxScore += 600 - currObjMaxScore;
+		maxScore += 300 * (gameHitobjects[objectsDeleted].slides + 1) - currObjMaxScore;
 		isSliding = false;
 	} else if (gameHitobjects[objectsDeleted].type == OBJ_TYPE_SPINNER) {
 		maxScore += 500 - currObjMaxScore;
@@ -435,13 +435,17 @@ static void CheckSlider(HitObject *currentObjectPtr)
 		if (nextCurvePoint == NULL) {
 			currSlides++;
 
+			AddMaxScore(300);
+			score += 300;
+			AddHealth();
+			combo++;
+
 			if (currSlides >= currentObjectPtr->slides) {
-				AddMaxScore(300);
-				score += 300;
-				AddHealth();
 				xil_printf("Slider complete! +300\r\nScore: %d\r\n", score);
 				DeleteObject(true);
 			} else {
+				xil_printf("Slider reverse! +300\r\nScore: %d\r\n", score);
+
 				if ((currSlides % 2) == 0)
 					nextCurvePoint = currCurvePoint->next;
 				else
