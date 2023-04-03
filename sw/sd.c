@@ -35,6 +35,7 @@ extern int *imageNum[10];
 extern int *percent;
 extern int *comboX;
 extern int *approachCircle[NUM_A_CIRCLES];
+extern int *reverse;
 
 #if DEBUG == 1
 unsigned int totalBytes = 0;
@@ -118,6 +119,7 @@ void loadSprites() {
 	loadFileFromSD("Sprites\\bgG.bin", &imageBg);
 	loadFileFromSD("Sprites\\percent.bin", &percent);
 	loadFileFromSD("Sprites\\x.bin", &comboX);
+	loadFileFromSD("Sprites\\reverse.bin", &reverse);
 
 	for (int i = 0; i < NUM_A_CIRCLES; i++) {
 		char tempPath[32];

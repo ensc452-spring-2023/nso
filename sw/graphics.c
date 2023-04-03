@@ -27,6 +27,7 @@ int *imageNum[10];
 int *percent;
 int *comboX;
 int *approachCircle[NUM_A_CIRCLES];
+int *reverse;
 
 void SetPixel(int *pixelAddr, int colour) {
 	*pixelAddr = colour;
@@ -189,6 +190,14 @@ void DrawApproachCircle(int x, int y, int index) {
 	int spriteY = y - A_CIRCLE_HALF;
 
 	DrawSprite(approachCircle[index], A_CIRCLE_WIDTH, A_CIRCLE_WIDTH, spriteX, spriteY);
+}
+
+void DrawReverse(int x, int y)
+{
+	int spriteX = x - REVERSE_HALF;
+	int spriteY = y - REVERSE_HALF;
+
+	DrawSprite(reverse, REVERSE_WIDTH, REVERSE_WIDTH, spriteX, spriteY);
 }
 
 void DrawSpinner(int x, int y, int index) {

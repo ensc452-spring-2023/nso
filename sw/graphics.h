@@ -48,6 +48,8 @@ typedef struct RenderNode{
 //#define SPINNER_HALF 344
 #define SPINNER_WIDTH 560
 #define SPINNER_HALF 280
+#define REVERSE_WIDTH 90
+#define REVERSE_HALF 45
 #define CENTER_X 960
 #define CENTER_Y 540
 #define RANKING_WIDTH 660
@@ -77,6 +79,8 @@ void DrawSliderEnd(int x, int y);
 void DrawCircle(int x, int y);
 // Centered
 void DrawApproachCircle(int x, int y, int index);
+// Centered
+void DrawReverse(int x, int y);
 // Centered
 void DrawSpinner(int x, int y, int index);
 // Top Left

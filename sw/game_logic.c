@@ -190,6 +190,9 @@ bool IsDisplayed(int objectIndex)
 /*--------------------------------------------------------------*/
 #define AC_MS 10 // Approach Circle Update ms
 
+static int currSlides = 0;
+static Node_t *nextCurvePoint = NULL;
+
 static double sliderFollowerX = 0.0;
 static double sliderFollowerY = 0.0;
 static int spinnerIndex = 0;
@@ -212,14 +215,21 @@ static void generateHitCircle(int x, int y, int acIndex, int comboIndex)
 }
 
 // Creates a slider on the screen.
-static void generateSlider(int x, int y, int acIndex, int comboIndex, int curveNumPoints, Node_t *curvePointsHead, bool sliding)
+static void generateSlider(HitObject *currentObjectPtr, int acIndex, bool sliding)
 {
+	int x = currentObjectPtr->x;
+	int y = currentObjectPtr->y;
+	int comboIndex = currentObjectPtr->comboLabel;
+	int objSlides = currentObjectPtr->slides;
+	int curveNumPoints = currentObjectPtr->curveNumPoints;
+	Node_t *curvePointsHead = currentObjectPtr->curvePointsHead;
+
 	Node_t *currNode = curvePointsHead;
 	CurvePoint *point = (CurvePoint *)currNode->data;
 
 	currNode = currNode->next;
 
-	//draw other line segments
+	// Draw line segments
 	for (int i = 0; i < curveNumPoints - 1; ++i) {
 		CurvePoint *prevPoint = point;
 		point = (CurvePoint *)currNode->data;
@@ -231,10 +241,32 @@ static void generateSlider(int x, int y, int acIndex, int comboIndex, int curveN
 
 	DrawSliderEnd(point->x, point->y);
 
-	if (sliding)
-		DrawSliderEnd(x, y);
-	else
+	if (!sliding) {
 		generateHitCircle(x, y, acIndex, comboIndex);
+
+		if (objSlides > 1)
+			DrawReverse(point->x, point->y);
+
+		return;
+	}
+
+	DrawSliderEnd(x, y);
+
+	int slidesLeft = objSlides - currSlides;
+
+	if (slidesLeft < 2)
+		return;
+
+	if (slidesLeft > 2) {
+		DrawReverse(x, y);
+		DrawReverse(point->x, point->y);
+		return;
+	}
+
+	if (currSlides % 2)
+		DrawReverse(x, y);
+	else
+		DrawReverse(point->x, point->y);
 }
 
 // Creates a spinner on the screen.
@@ -277,10 +309,7 @@ static void generateObject(HitObject *currentObjectPtr, bool sliding)
 			aCircleIndex = dt / AC_MS;
 		}
 
-		generateSlider(currentObjectPtr->x, currentObjectPtr->y,
-			aCircleIndex, currentObjectPtr->comboLabel,
-			currentObjectPtr->curveNumPoints,
-			currentObjectPtr->curvePointsHead, sliding);
+		generateSlider(currentObjectPtr, aCircleIndex, sliding);
 		break;
 	case 3:
 		//			xil_printf("Drawing Object[Spinner]\r\n");
@@ -338,9 +367,7 @@ static int quadrant = 0;
 static int prevQuadrant = 0;
 static int spins = 0;
 
-static int slides = 0;
 double sliderSpeed = .5;
-static Node_t *nextCurvePoint = NULL;
 
 // Moves the slider follower towards point
 void MoveSlider(HitObject* currentObjectPtr, int x1, int y1)
@@ -400,22 +427,22 @@ static void CheckSlider(HitObject *currentObjectPtr)
 	if (x0 == x1 && y0 == y1) {
 		Node_t *currCurvePoint = nextCurvePoint;
 
-		if ((slides % 2) == 0)
+		if ((currSlides % 2) == 0)
 			nextCurvePoint = nextCurvePoint->next;
 		else
 			nextCurvePoint = nextCurvePoint->prev;
 
 		if (nextCurvePoint == NULL) {
-			slides++;
+			currSlides++;
 
-			if (slides >= currentObjectPtr->slides) {
+			if (currSlides >= currentObjectPtr->slides) {
 				AddMaxScore(300);
 				score += 300;
 				AddHealth();
 				xil_printf("Slider complete! +300\r\nScore: %d\r\n", score);
 				DeleteObject(true);
 			} else {
-				if ((slides % 2) == 0)
+				if ((currSlides % 2) == 0)
 					nextCurvePoint = currCurvePoint->next;
 				else
 					nextCurvePoint = currCurvePoint->prev;
@@ -567,7 +594,7 @@ static void CheckCollision(HitObject *currentObjectPtr)
 				sliderFollowerX = currentObjectPtr->x;
 				sliderFollowerY = currentObjectPtr->y;
 				nextCurvePoint = currentObjectPtr->curvePointsHead->next;
-				slides = 0;
+				currSlides = 0;
 				isSliding = true;
 				combo++;
 			}
