@@ -367,3 +367,35 @@ void LineinLineoutConfig() {
 	AudioWriteToReg(R31_PLAYBACK_LINE_OUTPUT_LEFT_VOLUME_CONTROL, 0xE6); //0 dB
 	AudioWriteToReg(R32_PLAYBACK_LINE_OUTPUT_RIGHT_VOLUME_CONTROL, 0xE6); //0 dB
 }
+
+static int masterVolume[8] = {0x3, 0x7, 0x13, 0x23, 0x43, 0x67, 0x83, 0xE7};
+static int volume = 7;
+
+void increase_volume()
+{
+	volume = (volume + 1);
+	if(volume > 7)
+	{
+		volume = 7;
+	}
+
+	AudioWriteToReg(R29_PLAYBACK_HEADPHONE_LEFT_VOLUME_CONTROL, masterVolume[volume]); //0 dB
+	AudioWriteToReg(R30_PLAYBACK_HEADPHONE_RIGHT_VOLUME_CONTROL, masterVolume[volume]); //0 dB
+	AudioWriteToReg(R31_PLAYBACK_LINE_OUTPUT_LEFT_VOLUME_CONTROL, masterVolume[volume]&0xFE); //0 dB
+	AudioWriteToReg(R32_PLAYBACK_LINE_OUTPUT_RIGHT_VOLUME_CONTROL, masterVolume[volume]&0xFE); //0 dB
+}
+
+
+void decrease_volume()
+{
+	volume = (volume - 1);
+	if(volume < 0)
+	{
+		volume = 0;
+	}
+
+	AudioWriteToReg(R29_PLAYBACK_HEADPHONE_LEFT_VOLUME_CONTROL, masterVolume[volume]); //0 dB
+	AudioWriteToReg(R30_PLAYBACK_HEADPHONE_RIGHT_VOLUME_CONTROL, masterVolume[volume]); //0 dB
+	AudioWriteToReg(R31_PLAYBACK_LINE_OUTPUT_LEFT_VOLUME_CONTROL, masterVolume[volume]&0xFE); //0 dB
+	AudioWriteToReg(R32_PLAYBACK_LINE_OUTPUT_RIGHT_VOLUME_CONTROL, masterVolume[volume]&0xFE); //0 dB
+}
