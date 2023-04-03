@@ -63,7 +63,7 @@ static void AddHealth()
 
 static void DrainHealth()
 {
-	health -= 0; // Change back to 30 after testing~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	health -= 20;
 	if (health < 0)
 		health = 0;
 }
@@ -84,7 +84,7 @@ static void AddMaxScore(int num)
 
 static void JudgeTiming(int time)
 {
-	xil_printf("Hit Timing:%4d ", time);
+	xil_printf("Hit Timing:%4dms ", time);
 
 	AddMaxScore(300);
 
