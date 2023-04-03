@@ -132,29 +132,19 @@ void BTN_Intr_Handler(void *InstancePtr) {
 
 	btn_value = XGpio_DiscreteRead(&BTNInst, 1);
 
-	// Change display when buttons are pressed
+	// Act as LMB or RMB
 	if (btn_value == BTN_CENTER) {
-		score = 0;
-		screen = SCREEN_MENU;
-		DrawMenu();
+		UpdateMouse(true, false, 0, 0);
 	} else if (btn_value == BTN_LEFT) {
-		screen = SCREEN_GAME;
-		DrawGame(score);
+		UpdateMouse(true, false, 0, 0);
 	} else if (btn_value == BTN_RIGHT) {
-		screen = SCREEN_STAT;
-		DrawStats(score, 0, 0);
+		UpdateMouse(true, false, 0, 0);
 	} else if (btn_value == BTN_UP) {
-		score += 369;
-		if (screen == SCREEN_GAME)
-			DrawGame(score);
-		else if (screen == SCREEN_STAT)
-			DrawStats(score, 0, 0);
+		UpdateMouse(true, false, 0, 0);
 	} else if (btn_value == BTN_DOWN) {
-		score -= 144;
-		if (screen == SCREEN_GAME)
-			DrawGame(score);
-		else if (screen == SCREEN_STAT)
-			DrawStats(score, 0, 0);
+		UpdateMouse(true, false, 0, 0);
+	} else {
+		UpdateMouse(false, false, 0, 0);
 	}
 
 	(void) XGpio_InterruptClear(&BTNInst, BTN_INT);
