@@ -83,7 +83,6 @@ void song_select_menu()
 {
 	currScreen = SONGS;
 
-	char input = ' ';
 	DIR dir;
 	FRESULT result;
 	static char files[maxFiles][maxFilenameSize] = { 0 };
@@ -203,6 +202,9 @@ void settings_menu()
 	}
 }
 
+#define MAX_HIGHSCORES 5
+static int highscores[MAX_HIGHSCORES];
+
 /*-------------------------------------------/
  / void highscore_menu()
  /--------------------------------------------/
@@ -211,10 +213,24 @@ void settings_menu()
 int highscore_menu()
 {
 	currScreen = SCORE;
-	DrawScores(score, maxCombo, accuracy);
+	int tempScore = score;
+
+	// Insert highscore into sorted array
+	for (int i = 0; i < MAX_HIGHSCORES; i++) {
+		if (tempScore > highscores[i]) {
+			int buffer = tempScore;
+			tempScore = highscores[i];
+			highscores[i] = buffer;
+		}
+	}
 
 	while (true) {
 		DrawScores(score, maxCombo, accuracy);
+		DrawInt(highscores[0], 7, 1200, 300);
+		DrawInt(highscores[1], 7, 1200, 400);
+		DrawInt(highscores[2], 7, 1200, 500);
+		DrawInt(highscores[3], 7, 1200, 600);
+		DrawInt(highscores[4], 7, 1200, 700);
 		DisplayBufferAndMouse(getMouseX(), getMouseY());
 
 		if (isPress) {
