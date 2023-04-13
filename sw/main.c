@@ -126,7 +126,7 @@ void BTN_Intr_Handler(void *InstancePtr) {
 
 	btn_value = XGpio_DiscreteRead(&BTNInst, 1);
 
-	// Act as LMB or RMB
+	// Act as LMB
 	if (btn_value == BTN_CENTER) {
 		UpdateMouse(true, false, 0, 0);
 	} else if (btn_value == BTN_LEFT) {
@@ -160,19 +160,21 @@ static void TimerIntrHandler(void *CallBackRef) {
 }
 
 int status = 0;
-int usbStatus = 0;
-bool isPolling = false;
+int isUsbSetup = 0;
 XUsbPs_qTD *qTDPollReceiver = 0;
 
 #define MOUSE_LMB_MASK 0x01
 #define MOUSE_RMB_MASK 0x02
 
-static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
+static void UsbIntrHandler(void *CallBackRef, u32 Mask)
+{
+	// if transaction complete (setup packet sent or data packet received)
 	if (Mask & XUSBPS_IXR_UI_MASK) {
-		if (usbStatus > 0) {
+		if (isUsbSetup) {
 			XUsbPs_dQHInvalidateCache(usbWithHostInstance.HostConfig.QueueHead[1].pQH);
+			XUsbPs_dTDInvalidateCache(qTDPollReceiver);
 
-			XUsbPs_dTDInvalidateCache(qTDPollReceiver); // Invalidate before CPU read ??output buff??~~~~~~~~~~~~~~
+			// Get the buffer pointer of the qTD
 			u8 *buffInput = (u8 *) XUsbPs_ReaddTD(qTDPollReceiver,
 					XUSBPS_qTDANLP) - 1;
 
@@ -186,50 +188,61 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 			UpdateMouse(isLMB, isRMB, *changeX, *changeY);
 			//xil_printf("LMB = %d, RMB = %d, X = %4d, Y = %4d\r\n", isLMB, isRMB, *changeX, *changeY);
 #else
-			if (usbStatus == DEVICE_MOUSE) {
+			if (strcmp(USB_GetStrDesc(), "M65 Gaming Mouse")) {
 				short *changeX = (short *)(buffInput + 2);
 				short *changeY = (short *)(buffInput + 4);
 
 				UpdateMouse(isLMB, isRMB, *changeX, *changeY);
-				//xil_printf("LMB = %d, RMB = %d, X = %4d, Y = %4d\r\n", isLMB, isRMB, *changeX, *changeY);
-			} else if (usbStatus == DEVICE_TABLET) {
+				xil_printf("LMB = %d, RMB = %d, X = %4d, Y = %4d\r\n", isLMB, isRMB, *changeX, *changeY);
+			} else if (strcmp(USB_GetStrDesc(), "Intuos PS")) {
 				int newX = (buffInput[2] << 8) | buffInput[3];
 				int newY = (buffInput[4] << 8) | buffInput[5];
 
 				UpdateTablet(newX, newY);
-				//xil_printf("x:%02x%02x y:%02x%02x\r\n", buffInput[2], buffInput[3], buffInput[4], buffInput[5]);
+				xil_printf("x:%02x%02x y:%02x%02x\r\n", buffInput[2], buffInput[3], buffInput[4], buffInput[5]);
 			}
 #endif
 
+			// Activate the next qTD
 			qTDPollReceiver = USB_qTDActivateIn(
 					&usbWithHostInstance.HostConfig.QueueHead[1], true, 0);
 			return;
 		}
 
-		usbStatus = USB_SetupDevice(&usbWithHostInstance, status);
+		// if not setup, keep running setup
+		isUsbSetup = USB_SetupDevice(&usbWithHostInstance);
 
-		if (usbStatus > 0) {
+		// if just finished setup
+		if (isUsbSetup > 0) {
+			// Disable the current polling qTD and reset the DT bit
+			XUsbPs_pQH *pQHPoll = usbWithHostInstance.HostConfig.QueueHead[1].pQH;
+
+			XUsbPs_dQHInvalidateCache(pQHPoll);
+
+			u32 qTDToken = XUsbPs_ReaddQH(pQHPoll, XUSBPS_QHqTDTOKEN);
+			qTDToken |= XUSBPS_qTDTOKEN_DT_MASK;
+			qTDToken &= ~0xFF; // Clear active bit and errors
+
+			XUsbPs_WritedQH(pQHPoll, XUSBPS_QHqTDTOKEN, qTDToken);
+
+			XUsbPs_dQHFlushCache(pQHPoll);
+
+			// Activate the next qTD
 			qTDPollReceiver = USB_qTDActivateIn(
 					&usbWithHostInstance.HostConfig.QueueHead[1], true, 0);
-			// Enable Periodic Schedule
+
+			// Enable Periodic Schedule for polling
 			XUsbPs_SetBits(UsbInstancePtr, XUSBPS_CMD_OFFSET, XUSBPS_CMD_PSE_MASK);
 		}
 
-		if (status == 11) {
-			status = 0;
-			return;
-		}
-
-		status++;
 		return;
 	}
 
 	if ((XUsbPs_ReadReg(UsbInstancePtr->Config.BaseAddress, XUSBPS_PORTSCR1_OFFSET)
 			& XUSBPS_PORTSCR_CCS_MASK) == 0) {
 		xil_printf("Device Disconnected!\r\n\n");
-		usbStatus = false;
-		isPolling = false;
-		status = 0;
+		isUsbSetup = false;
+		USB_RestartSetup();
 
 		// Disable Periodic Schedule
 		XUsbPs_ClrBits(UsbInstancePtr, XUSBPS_CMD_OFFSET, XUSBPS_CMD_PSE_MASK);
@@ -244,7 +257,9 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 	if ((XUsbPs_ReadReg(UsbInstancePtr->Config.BaseAddress, XUSBPS_PORTSCR1_OFFSET)
 			& XUSBPS_PORTSCR_PE_MASK) == 0) {
 		xil_printf("Resetting...\r\n\n");
-		status = 0;
+		USB_RestartSetup();
+
+		// Reset USB device
 		XUsbPs_SetBits(UsbInstancePtr, XUSBPS_PORTSCR1_OFFSET,
 				XUSBPS_PORTSCR_PR_MASK);
 		return;
@@ -270,8 +285,7 @@ static void UsbIntrHandler(void *CallBackRef, u32 Mask) {
 		return;
 	}
 
-	usbStatus = USB_SetupDevice(&usbWithHostInstance, status);
-	status++;
+	isUsbSetup = USB_SetupDevice(&usbWithHostInstance);
 
 	// Enable Async
 	XUsbPs_SetBits(UsbInstancePtr, XUSBPS_CMD_OFFSET, XUSBPS_CMD_ASE_MASK);

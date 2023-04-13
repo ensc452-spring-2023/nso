@@ -2,29 +2,37 @@
  /	!nso - Appended XUsbPs Host Mode										   /
  /-----------------------------------------------------------------------------/
  /	Bowie Gian
- /	04/03/2023
+ /	2023-04-12
  /	usb.h
  /
- /	Referenced XUsbPs v2.6 Library
- /	I added the missing functions to use USB host mode with the XUsbPs library.
- /----------------------------------------------------------------------------*/
+ /	I added functions to use USB host mode with the XUsbPs library.
+ /	Some functions are modified from the provided device mode example
+ /	xusbps_intr_example.c
+ /	https://github.com/Xilinx/embeddedsw/tree/master/XilinxProcessorIPLib/drivers/usbps/examples
+ /	The rest are modified from the xUsbPs v2_6 library.
+ /
+ /	The changes are mostly changing all the EHCI device transfer descriptors to
+ /	host mode and setting them up correctly for my application.
+ /
+ /	This file contains many host mode transfer descriptor offsets and bit masks.
+/-----------------------------------------------------------------------------*/
 
 #ifndef USB_H
 #define USB_H
 
+
 /*--------------------------------------------------------------*/
 /* Include Files												*/
 /*--------------------------------------------------------------*/
+#include <stdbool.h>
 #include "xusbps.h"
 #include "xusbps_endpoint.h"
 #include "xscugic.h"
-#include <stdbool.h>
+
 
 /*--------------------------------------------------------------*/
 /* Definitions													*/
 /*--------------------------------------------------------------*/
-#define DEVICE_MOUSE	1
-#define DEVICE_TABLET	2
 
 #define XUSBPS_REQ_GET_DESCRIPTOR	0x06
 #define XUSBPS_REQ_SET_CONFIGURATION	0x09
@@ -35,9 +43,11 @@
 typedef u8	XUsbPs_pQH[XUSBPS_dQH_ALIGN];
 typedef u8	XUsbPs_qTD[XUSBPS_dTD_ALIGN];
 
+
 /*--------------------------------------------------------------*/
 /* Structs														*/
 /*--------------------------------------------------------------*/
+
 /**
  * The following data structure represents a queue head.
  * This is based off the endpoints in XUsbPs.h
@@ -94,8 +104,6 @@ typedef struct {
 	/**< Number of buffers to be handled by this Queue Head. */
 	u32	BufSize;
 	/**< Buffer size. */
-
-
 } XUsbPs_QH;
 
 /**
@@ -131,12 +139,20 @@ typedef struct {
 	XUsbPs_HostConfig HostConfig;
 } UsbWithHost;
 
-int USB_SetupDevice(UsbWithHost *usbWithHostInstancePtr, int status);
+/*--------------------------------------------------------------*/
+/* My Function Prototypes										*/
+/*--------------------------------------------------------------*/
+
+void USB_RestartSetup();
+bool USB_SetupDevice(UsbWithHost *usbWithHostInstancePtr);
 void USB_SetupPolling(UsbWithHost *usbWithHostInstancePtr);
 XUsbPs_qTD* USB_qTDActivateIn(XUsbPs_QH *QueueHead, bool isIOC, bool dataNum);
+char *USB_GetStrDesc();
 
-// from xusbps_intr_example.c
-// https://github.com/Xilinx/embeddedsw/tree/master/XilinxProcessorIPLib/drivers/usbps/examples
+/*--------------------------------------------------------------*/
+/* Modified Functions from xusbps_intr_example.c				*/
+/*--------------------------------------------------------------*/
+
 int UsbSetupIntrSystem(XScuGic *IntcInstancePtr, XUsbPs *UsbInstancePtr, u16 UsbIntrId);
 void UsbDisableIntrSystem(XScuGic *IntcInstancePtr, u16 UsbIntrId);
 int USB_Setup(XScuGic *IntcInstancePtr, UsbWithHost *usbWithHostInstancePtr, u16 UsbDeviceId, u16 UsbIntrId, void *UsbIntrHandler);

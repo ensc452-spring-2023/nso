@@ -2,22 +2,60 @@
  /	!nso - Appended XUsbPs Host Mode										   /
  /-----------------------------------------------------------------------------/
  /	Bowie Gian
- /	04/03/2023
- /	usb.c
+ /	2023-04-12
+ /	usb.h
  /
- /	Referenced XUsbPs v2.6 Library
- /	I added the missing functions to use USB host mode with the XUsbPs library.
- /----------------------------------------------------------------------------*/
+ /	I added functions to use USB host mode with the XUsbPs library.
+ /	Some functions are modified from the provided device mode example
+ /	xusbps_intr_example.c
+ /	https://github.com/Xilinx/embeddedsw/tree/master/XilinxProcessorIPLib/drivers/usbps/examples
+ /	The rest are modified from the xUsbPs v2_6 library.
+ /
+ /	The changes are mostly changing all the EHCI device transfer descriptors to
+ /	host mode and setting them up correctly for my application.
+ /
+ /	This file contains the functions that will setup and poll the USB device.
+/-----------------------------------------------------------------------------*/
+
+
+/*--------------------------------------------------------------*/
+/* Include Files												*/
+/*--------------------------------------------------------------*/
 
 #include <stdlib.h>
 #include "usb.h"
-#include <stdlib.h>
+
+
+/*--------------------------------------------------------------*/
+/* Local Variables												*/
+/*--------------------------------------------------------------*/
 
 static u8 Buffer[MEMORY_SIZE] __attribute__((aligned(32)));
+
+static char *strManu = NULL;
+static char *strDesc = NULL;
+static int strNumManu = 0;
+static int strNumDesc = 0;
+static int strLength = 0;
+
+static int setupStatus = 0;
+static XUsbPs_qTD *qTDReceiver = 0;
+
+
+/*--------------------------------------------------------------*/
+/* My Helper Function Prototypes								*/
+/*--------------------------------------------------------------*/
+
+static void USB_qTDActivateSetup(XUsbPs_qTD *qTD, bool isIOC);
+static void USB_SendSetupPacket(XUsbPs_QH *QueueHead, bool isIOC,
+		u8 bmRequestType, u8 bRequest, u16 wValue, u16 wIndex, u16 wLength);
+static char *USB_FormatString(char *message, int length);
+
 
 /*--------------------------------------------------------------*/
 /* My Functions													*/
 /*--------------------------------------------------------------*/
+
 static void USB_qTDActivateSetup(XUsbPs_qTD *qTD, bool isIOC) {
 	XUsbPs_dTDInvalidateCache(qTD);
 
@@ -34,7 +72,8 @@ static void USB_qTDActivateSetup(XUsbPs_qTD *qTD, bool isIOC) {
 	XUsbPs_dTDFlushCache(qTD);
 }
 
-static void USB_SendSetupPacket(XUsbPs_QH *QueueHead, bool isIOC, u8  bmRequestType, u8  bRequest, u16 wValue, u16 wIndex, u16 wLength) {
+static void USB_SendSetupPacket(XUsbPs_QH *QueueHead, bool isIOC,
+		u8 bmRequestType, u8 bRequest, u16 wValue, u16 wIndex, u16 wLength) {
 	XUsbPs_qTD *qTD = QueueHead->qTDHead;
 
 	// Reset buffer pointer
@@ -55,58 +94,118 @@ static void USB_SendSetupPacket(XUsbPs_QH *QueueHead, bool isIOC, u8  bmRequestT
 	USB_qTDActivateSetup(qTD, isIOC);
 }
 
-XUsbPs_qTD* USB_qTDActivateIn(XUsbPs_QH *QueueHead, bool isIOC, bool dataNum) {
-	XUsbPs_qTD *qTD = QueueHead->qTDHead;
-	XUsbPs_dTDInvalidateCache(qTD);
+static char *USB_FormatString(char *message, int length) {
+	char *output = malloc(length/2);
 
-	u32 token = 0;
-	// If DATA1, toggle the data bit.  DATA0 is already 0.
-	if (dataNum)
-		token = XUSBPS_qTDTOKEN_DT_MASK;
+	if (output == NULL) {
+		xil_printf("USB_FormatString: Malloc failed!\r\n");
+		return NULL;
+	}
 
-	if (isIOC)
-		token |= XUSBPS_qTDTOKEN_IOC_MASK;
-
-	// Set Active and Cerr = 3, PID IN and Interrupt On Complete
-	token |= XUSBPS_qTDTOKEN_ACTIVE_MASK | XUSBPS_qTDTOKEN_CERR_MASK | XUSBPS_qTDTOKEN_PID_IN;
-	XUsbPs_WritedTD(qTD, XUSBPS_qTDTOKEN, token);
-
-	// Set Max Input Transfer length
-	u32 length = QueueHead->BufSize;
-
-	XUsbPs_WritedTD(qTD, XUSBPS_qTDTOKEN,
-			(XUsbPs_ReaddTD(qTD, XUSBPS_qTDTOKEN) & ~XUSBPS_dTDTOKEN_LEN_MASK) | (length << 16));
-
-	XUsbPs_WritedTD(qTD, XUSBPS_qTDBPTR0, XUsbPs_ReaddTD(qTD, XUSBPS_qTDANLP) - 1);
-
-	XUsbPs_dTDFlushCache(qTD);
-
-	//Flush IN Buffer
-	Xil_DCacheFlushRange((unsigned int)XUsbPs_ReaddTD(qTD, XUSBPS_qTDBPTR0), length);
-
-	QueueHead->qTDHead = XUsbPs_dTDGetNLP(QueueHead->qTDHead);
-
-	return qTD;
-}
-
-static void USB_PrintUTF16(char *message, int length) {
-	char output[length/2];
-
-	int outputIndex = 0;
+	char *temp = output;
 	for (int i = 0; i < length; i++) {
 		if (i < 2)
 			continue;
 		if ((i % 2) == 0) {
-			output[outputIndex] = message[i];
-			outputIndex++;
+			*temp = message[i];
+			temp++;
 		}
 	}
-	output[outputIndex] = '\0';
+	*temp = '\0';
 
-	xil_printf("%s", output);
+	return output;
 }
 
-void USB_SetupPolling(UsbWithHost *usbWithHostInstancePtr) {
+void USB_RestartSetup()
+{
+	setupStatus = 0;
+}
+
+bool USB_SetupDevice(UsbWithHost *usbWithHostInstancePtr)
+{
+	int isSetup = false;
+	XUsbPs_QH *setupQH = &usbWithHostInstancePtr->HostConfig.QueueHead[0];
+	u8 *buffInput = 0;
+
+	XUsbPs_dQHInvalidateCache(setupQH->pQH);
+
+	if (setupStatus > 0 && setupStatus < 10) {
+		XUsbPs_dTDInvalidateCache(qTDReceiver);
+		buffInput = (u8 *)XUsbPs_ReaddTD(qTDReceiver, XUSBPS_qTDANLP) - 1;
+	}
+	
+	if (setupStatus == 0) { // Set Address 0x0C
+		u32 qTDToken = XUsbPs_ReaddQH(setupQH->pQH, XUSBPS_QHqTDTOKEN);
+		qTDToken &= ~0xFF; // Clear current active bit and errors
+		XUsbPs_WritedQH(setupQH->pQH, XUSBPS_QHqTDTOKEN, qTDToken);
+
+		free(strManu);
+		free(strDesc);
+
+		XUsbPs_WritedQH(setupQH->pQH, XUSBPS_QHCFG0, XUsbPs_ReaddQH(setupQH->pQH, XUSBPS_QHCFG0) & ~0x0C);
+		USB_SendSetupPacket(setupQH, false, 0, 0x05, 0x0C, 0, 0);
+		qTDReceiver = USB_qTDActivateIn(setupQH, true, 1);
+	} else if (setupStatus == 1) { // Request device descriptor
+		XUsbPs_WritedQH(setupQH->pQH, XUSBPS_QHCFG0, XUsbPs_ReaddQH(setupQH->pQH, XUSBPS_QHCFG0) | 0x0C);
+		USB_SendSetupPacket(setupQH, false, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0100, 0, 0x12);
+		qTDReceiver = USB_qTDActivateIn(setupQH, true, 1);
+	} else if (setupStatus == 2) {
+		// Read string locations
+		strNumManu = buffInput[14];
+		strNumDesc = buffInput[15];
+
+		// Request Device String Info (0x0409 is English)
+		USB_SendSetupPacket(setupQH, false, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0300 + strNumDesc, 0x0409, 0x02);
+		qTDReceiver = USB_qTDActivateIn(setupQH, true, 1);
+	} else if (setupStatus == 3) {
+		// Get string length
+		strLength = buffInput[0];
+
+		// Request Device String (0x0409 is English)
+		USB_SendSetupPacket(setupQH, false, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0300 + strNumDesc, 0x0409, strLength);
+		qTDReceiver = USB_qTDActivateIn(setupQH, true, 1);
+	} else if (setupStatus == 4) {
+		strDesc = USB_FormatString((char *)buffInput, strLength);
+		if (strDesc != NULL)
+			xil_printf("Device: %s\r\n", strDesc);
+
+		// Request Manufacturer String Info
+		USB_SendSetupPacket(setupQH, false, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0300 + strNumManu, 0x0409, 0x02);
+		qTDReceiver = USB_qTDActivateIn(setupQH, true, 1);
+	} else if (setupStatus == 5) {
+		strLength = buffInput[0];
+
+		// Request Manufacturer String
+		USB_SendSetupPacket(setupQH, false, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0300 + strNumManu, 0x0409, strLength);
+		qTDReceiver = USB_qTDActivateIn(setupQH, true, 1);
+	} else if (setupStatus == 6) {
+		strManu = USB_FormatString((char *)buffInput, strLength);
+		if (strManu != NULL)
+			xil_printf("Manufacturer: %s\r\n", strManu);
+
+		// Set Config 1
+		USB_SendSetupPacket(setupQH, true, 0x00, XUSBPS_REQ_SET_CONFIGURATION, 0x0001, 0x0000, 0x0000);
+	} else if (setupStatus == 7) {
+		// Set HID Idle Time (0ms)
+		USB_SendSetupPacket(setupQH, true, 0x21, 0x0A, 0x0000, 0x0000, 0x0000);
+	} else if (setupStatus == 8) {
+		// Set HID Protocol 0
+		USB_SendSetupPacket(setupQH, true, 0x21, 0x0B, 0x0001, 0x0000, 0x0000);
+	} else if (setupStatus == 9) {
+		xil_printf("Setup successful!\r\n");
+		isSetup = true;
+	}
+
+	//	USB_SendSetupPacket(setupQH, false, 0, XUSBPS_REQ_SET_ADDRESS, 0xC, 0, 0); // Set Address 0x0C
+	//	USB_SendSetupPacket(setupQH, false, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0200, 0, 0x09); // Get Config
+
+	XUsbPs_dQHFlushCache(setupQH->pQH);
+	setupStatus++;
+	return isSetup;
+}
+
+void USB_SetupPolling(UsbWithHost *usbWithHostInstancePtr)
+{
 	XUsbPs *UsbInstancePtr = &usbWithHostInstancePtr->usbInstance;
 
 	// Setup Polling
@@ -141,111 +240,49 @@ void USB_SetupPolling(UsbWithHost *usbWithHostInstancePtr) {
 	//return qTDReceiver;
 }
 
-static int strNumManu = 0;
-static int strNumDesc = 0;
-static int strNumSerial = 0;
-static int length = 0;
-static XUsbPs_qTD *qTDReceiver = 0;
+XUsbPs_qTD *USB_qTDActivateIn(XUsbPs_QH *QueueHead, bool isIOC, bool dataNum)
+{
+	XUsbPs_qTD *qTD = QueueHead->qTDHead;
+	XUsbPs_dTDInvalidateCache(qTD);
 
-static int device = 1;
+	u32 token = 0;
+	// If DATA1, toggle the data bit. DATA0 is already 0.
+	if (dataNum)
+		token = XUSBPS_qTDTOKEN_DT_MASK;
 
-int USB_SetupDevice(UsbWithHost *usbWithHostInstancePtr, int status) {
-	int isSetup = 0;
-	XUsbPs_QH *setupQH = &usbWithHostInstancePtr->HostConfig.QueueHead[0];
-	u8 *buffInput = 0;
+	if (isIOC)
+		token |= XUSBPS_qTDTOKEN_IOC_MASK;
 
-	XUsbPs_dQHInvalidateCache(setupQH->pQH);
+	// Set Active and Cerr = 3, PID IN and Interrupt On Complete
+	token |= XUSBPS_qTDTOKEN_ACTIVE_MASK | XUSBPS_qTDTOKEN_CERR_MASK | XUSBPS_qTDTOKEN_PID_IN;
+	XUsbPs_WritedTD(qTD, XUSBPS_qTDTOKEN, token);
 
-	if (status > 0 && status < 10) {
-		XUsbPs_dTDInvalidateCache(qTDReceiver); // Invalidate before CPU read ??output buff??~~~~~~~~~~~~~~~~~~~~
-		buffInput = (u8 *)XUsbPs_ReaddTD(qTDReceiver, XUSBPS_qTDANLP) - 1;
-	}
-	
-	if (status == 0) { // Set Address 0x0C
-		XUsbPs_WritedQH(setupQH->pQH, XUSBPS_QHCFG0, XUsbPs_ReaddQH(setupQH->pQH, XUSBPS_QHCFG0) & ~0x0C);
-		USB_SendSetupPacket(setupQH, false, 0, 0x05, 0x0C, 0, 0);
-		qTDReceiver = USB_qTDActivateIn(setupQH, true, 1);
-	} else if (status == 1) { // Request device descriptor
-		XUsbPs_WritedQH(setupQH->pQH, XUSBPS_QHCFG0, XUsbPs_ReaddQH(setupQH->pQH, XUSBPS_QHCFG0) | 0x0C);
-		USB_SendSetupPacket(setupQH, false, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0100, 0, 0x12);
-		qTDReceiver = USB_qTDActivateIn(setupQH, true, 1);
-	} else if (status == 2) {
-		// Read string locations
-		strNumManu = buffInput[14];
-		strNumDesc = buffInput[15];
-		strNumSerial = buffInput[16];
+	// Set Max Input Transfer length
+	u32 length = QueueHead->BufSize;
 
-		// Request Device String Info (0x0409 is English)
-		USB_SendSetupPacket(setupQH, false, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0300 + strNumDesc, 0x0409, 0x02);
-		qTDReceiver = USB_qTDActivateIn(setupQH, true, 1);
-	} else if (status == 3) {
-		// Get string length
-		length = buffInput[0];
+	XUsbPs_WritedTD(qTD, XUSBPS_qTDTOKEN,
+		(XUsbPs_ReaddTD(qTD, XUSBPS_qTDTOKEN) & ~XUSBPS_dTDTOKEN_LEN_MASK) | (length << 16));
 
-		// Request Device String (0x0409 is English)
-		USB_SendSetupPacket(setupQH, false, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0300 + strNumDesc, 0x0409, length);
-		qTDReceiver = USB_qTDActivateIn(setupQH, true, 1);
-	} else if (status == 4) {
-		xil_printf("Device: ");
-		USB_PrintUTF16((char *)buffInput, length);
-		xil_printf("\r\n");
+	XUsbPs_WritedTD(qTD, XUSBPS_qTDBPTR0, XUsbPs_ReaddTD(qTD, XUSBPS_qTDANLP) - 1);
 
-		// Check mouse or tablet
-		if (buffInput[2] == 'I')
-			device = DEVICE_TABLET;
-		else if (buffInput[2] == 'C')
-			device = DEVICE_MOUSE;
+	XUsbPs_dTDFlushCache(qTD);
 
-		// Request Manufacturer String Info
-		USB_SendSetupPacket(setupQH, false, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0300 + strNumManu, 0x0409, 0x02);
-		qTDReceiver = USB_qTDActivateIn(setupQH, true, 1);
-	} else if (status == 5) {
-		length = buffInput[0];
+	//Flush IN Buffer
+	Xil_DCacheFlushRange((unsigned int)XUsbPs_ReaddTD(qTD, XUSBPS_qTDBPTR0), length);
 
-		// Request Manufacturer String
-		USB_SendSetupPacket(setupQH, false, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0300 + strNumManu, 0x0409, length);
-		qTDReceiver = USB_qTDActivateIn(setupQH, true, 1);
-	} else if (status == 6) {
-		xil_printf("Manufacturer: ");
-		USB_PrintUTF16((char *)buffInput, length);
-		xil_printf("\r\n");
+	QueueHead->qTDHead = XUsbPs_dTDGetNLP(QueueHead->qTDHead);
 
-		// Request Serial Number Info
-		USB_SendSetupPacket(setupQH, false, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0300 + strNumSerial, 0x0409, 0x02);
-		qTDReceiver = USB_qTDActivateIn(setupQH, true, 1);
-	} else if (status == 7) {
-		length = buffInput[0];
-
-		// Request Serial Number
-		USB_SendSetupPacket(setupQH, false, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0300 + strNumSerial, 0x0409, length);
-		qTDReceiver = USB_qTDActivateIn(setupQH, true, 1);
-	} else if (status == 8) {
-		int num1 = buffInput[2];
-		int num2 = buffInput[3];
-		xil_printf("Serial Number: %d%d\r\n", num1, num2);
-
-		// Set Config 1
-		USB_SendSetupPacket(setupQH, true, 0x00, XUSBPS_REQ_SET_CONFIGURATION, 0x0001, 0x0000, 0x0000);
-	} else if (status == 9) {
-		// Set HID Idle Time (0ms)
-		USB_SendSetupPacket(setupQH, true, 0x21, 0x0A, 0x0000, 0x0000, 0x0000);
-	} else if (status == 10) {
-		// Set HID Protocol 0
-		USB_SendSetupPacket(setupQH, true, 0x21, 0x0B, 0x0001, 0x0000, 0x0000);
-	} else if (status == 11) {
-		xil_printf("Setup successful!\r\n");
-		isSetup = device;
-	}
-
-	//	USB_SendSetupPacket(setupQH, false, 0, XUSBPS_REQ_SET_ADDRESS, 0xC, 0, 0); // Set Address 0x0C
-	//	USB_SendSetupPacket(setupQH, false, 0x80, XUSBPS_REQ_GET_DESCRIPTOR, 0x0200, 0, 0x09); // Get Config
-
-	XUsbPs_dQHFlushCache(setupQH->pQH);
-	return isSetup;
+	return qTD;
 }
 
+char *USB_GetStrDesc()
+{
+	return strDesc;
+}
+
+
 /*--------------------------------------------------------------*/
-/* Modified Functions from XUsbPs Library						*/
+/* Modified Functions from xusbps_intr_example.c				*/
 /*--------------------------------------------------------------*/
 
 /*****************************************************************************/
@@ -255,7 +292,7 @@ int USB_SetupDevice(UsbWithHost *usbWithHostInstancePtr, int status) {
  * will take care of splitting the buffer into multiple 4kB aligned segments if
  * the buffer happens to span one or more 4kB pages.
  *
- * @param	dTDIndex is a pointer to the Transfer Descriptor
+ * @param	qTDPtr is a pointer to the Transfer Descriptor
  * @param	BufferPtr is pointer to the buffer to link to the descriptor.
  * @param	BufferLen is the length of the buffer.
  *
@@ -266,7 +303,7 @@ int USB_SetupDevice(UsbWithHost *usbWithHostInstancePtr, int status) {
  *		maximum allowed buffer size (16k).
  *
  * @note
- * 		Cache invalidation and flushing needs to be handler by the
+ * 		Cache invalidation and flushing needs to be handled by the
  * 		caller of this function.
  *
  ******************************************************************************/
@@ -505,8 +542,6 @@ static void XUsbPs_QHInit(XUsbPs_HostConfig *HostCfgPtr)
 	 *
 	 */
 	for (QHNum = 0; QHNum < HostCfgPtr->NumQHs; ++QHNum) {
-
-
 		if (QHNum == 0) {			// Temp config: EPS=FS EpNum=0 Addr=0 H=1 (Head) DTC=1
 			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHHLPTR, 0x802);
 			XUsbPs_WritedQH(QueueHead[QHNum].pQH, XUSBPS_QHCFG0, 0xF800C000);
